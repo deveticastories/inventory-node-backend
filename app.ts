@@ -11,7 +11,8 @@ import customerRoutes from "./src/modules/customer/customerRoutes";
 import purchaseEntryRoutes from "./src/modules/purchaseEntry/purchaseEntryRoutes"
 import purchaseQualityCheckRoutes from "./src/modules/purchaseQualityCheck/purchaseQualityCheckRoutes";
 import storeStockTransferRoutes from "./src/modules/storeStockTransfer/storeStockTransferRoutes";
-import dailyExpenseRoutes from "./src/modules/dailyExpense/dailyExpenseRoutes"
+import dailyExpenseRoutes from "./src/modules/dailyExpense/dailyExpenseRoutes";
+import packingListRoutes from "./src/modules/packingList/packingListRoutes";
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./src/config/swagger";
 const app: Application = express();
@@ -28,5 +29,6 @@ app.use("/api/customers", customerRoutes)
 app.use("/api/purchase-entries", purchaseEntryRoutes);
 app.use("/api/purchase-quality-checks", purchaseQualityCheckRoutes);
 app.use("/api/store-stock-transfers", storeStockTransferRoutes);
-app.use("/api/daily-expenses", dailyExpenseRoutes)
+app.use("/api/daily-expenses", dailyExpenseRoutes);
+app.use("/api/packing-lists", packingListRoutes);
 export default app;

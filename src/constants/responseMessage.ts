@@ -113,6 +113,18 @@ export const message = {
     DAILY_EXPENSES_FETCH_FAILED: "Failed to fetch daily expenses",
     DAILY_EXPENSE_FETCHED: "Daily expense fetched successfully",
     DAILY_EXPENSE_DELETED: "Daily expense deleted successfully",
+    PACKING_LIST_CREATED: "Packing list created successfully",
+    PACKING_LISTS_FETCHED: "Packing lists fetched successfully",
+    PACKING_LIST_FETCHED: "Packing list fetched successfully",
+    PACKING_LIST_UPDATED: "Packing list updated successfully",
+    PACKING_LIST_DELETED: "Packing list deleted successfully",
+    PACKING_LIST_NOT_FOUND: "Packing list not found",
+    PACKING_LIST_ID_INVALID: "Invalid packing list ID",
+    PACKING_LIST_CREATE_FAILED: "Failed to create packing list",
+    PACKING_LISTS_FETCH_FAILED: "Failed to fetch packing lists",
+    PACKING_LIST_FETCH_FAILED: "Failed to fetch packing list",
+    PACKING_LIST_UPDATE_FAILED: "Failed to update packing list",
+    PACKING_LIST_DELETE_FAILED: "Failed to delete packing list",
 
 
 };
