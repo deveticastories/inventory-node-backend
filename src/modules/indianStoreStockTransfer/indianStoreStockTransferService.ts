@@ -81,9 +81,10 @@ export const getIndianStoreStockTransferProducts = async (
         const availableQty = await getAvailableQty(
             storeId,
             productId,
+            storeType,
         );
 
-        if (storeType === "fromStore" && availableQty <= 0) {
+        if (availableQty <= 0) {
             continue;
         }
 
@@ -99,9 +100,9 @@ export const getIndianStoreStockTransferProducts = async (
 
         products.push({
             qualityCheckProduct:
-                storeType === "toStore" && populatedProduct
-                    ? populatedProduct
-                    : productId,
+                storeType === "fromStore"
+                    ? product.qualityCheckProduct
+                    : populatedProduct ?? productId,
             productName:
                 populatedProduct?.productName ??
                 product.productName,
@@ -119,6 +120,121 @@ export const getIndianStoreStockTransferProducts = async (
     }
 
     return products;
+};
+
+export const getAllIndianStoreStockTransfers = async (
+    page: number,
+    limit: number,
+    search?: string,
+    fromStore?: string,
+    toStore?: string,
+) => {
+    if (fromStore && toStore) {
+        throw new Error("ONLY_ONE_STORE_FILTER_ALLOWED");
+    }
+
+    const storeId = fromStore ?? toStore;
+
+    if (storeId) {
+        if (!mongoose.Types.ObjectId.isValid(storeId)) {
+            throw new Error("STORE_ID_INVALID");
+        }
+
+        const store = await findStoreById(storeId);
+
+        if (!store || store.isDeleted) {
+            throw new Error("STORE_NOT_FOUND");
+        }
+
+        const storeType: "fromStore" | "toStore" = fromStore
+            ? "fromStore"
+            : "toStore";
+
+        const records =
+            storeType === "fromStore"
+                ? await getQualityCheckProducts()
+                : await getTransferredProductsForStore(storeId);
+
+        const filteredProducts = [];
+
+        for (const product of records) {
+            const productId = getQualityCheckProductId(product);
+
+            if (
+                !productId ||
+                !mongoose.Types.ObjectId.isValid(productId)
+            ) {
+                continue;
+            }
+
+            const populatedProduct =
+                getPopulatedQualityCheckProduct(product);
+
+            const productName =
+                populatedProduct?.productName ??
+                product.productName ??
+                "";
+
+            if (
+                search?.trim() &&
+                !productName
+                    .toLowerCase()
+                    .includes(search.trim().toLowerCase())
+            ) {
+                continue;
+            }
+
+            const availableQty = await getAvailableQty(
+                storeId,
+                productId,
+                storeType,
+            );
+
+            if (availableQty <= 0) {
+                continue;
+            }
+
+            if (
+                storeType === "toStore" &&
+                !("transferredQty" in product)
+            ) {
+                continue;
+            }
+
+            filteredProducts.push({
+                qualityCheckProduct:
+                    storeType === "fromStore"
+                        ? product.qualityCheckProduct
+                        : populatedProduct ?? productId,
+                productName,
+                rate:
+                    populatedProduct?.purchaseRate ??
+                    ("rate" in product
+                        ? product.rate
+                        : product.purchaseRate),
+                ...(storeType === "toStore" &&
+                    "transferredQty" in product
+                    ? {
+                        transferredQty: product.transferredQty,
+                    }
+                    : {}),
+                availableQtyAfterTransfer: availableQty,
+            });
+        }
+
+        const skip = (page - 1) * limit;
+
+        return {
+            data: filteredProducts.slice(skip, skip + limit),
+            totalRecords: filteredProducts.length,
+        };
+    }
+
+    return findAllIndianStoreStockTransfers(
+        page,
+        limit,
+        search,
+    );
 };
 
 interface CreateIndianStoreStockTransferInput {
@@ -213,6 +329,7 @@ export const createIndianStoreStockTransferService = async (
         const availableQty = await getAvailableQty(
             data.fromStore,
             productId,
+            "fromStore",
         );
 
         if (item.qty > availableQty) {
@@ -265,123 +382,117 @@ export const getIndianStoreStockTransferById = async (
     return transfer;
 };
 
-export const getAllIndianStoreStockTransfers = async (
-    page: number,
-    limit: number,
-    search?: string,
-    fromStore?: string,
-    toStore?: string,
-) => {
-    if (fromStore && toStore) {
-        throw new Error("ONLY_ONE_STORE_FILTER_ALLOWED");
-    }
+// export const getAllIndianStoreStockTransfers = async (
+//     page: number,
+//     limit: number,
+//     search?: string,
+//     fromStore?: string,
+//     toStore?: string,
+// ) => {
+//     if (fromStore && toStore) {
+//         throw new Error("ONLY_ONE_STORE_FILTER_ALLOWED");
+//     }
 
-    const storeId = fromStore ?? toStore;
+//     const storeId = fromStore ?? toStore;
 
-    if (storeId) {
-        if (!mongoose.Types.ObjectId.isValid(storeId)) {
-            throw new Error("STORE_ID_INVALID");
-        }
+//     if (storeId) {
+//         if (!mongoose.Types.ObjectId.isValid(storeId)) {
+//             throw new Error("STORE_ID_INVALID");
+//         }
 
-        const store = await findStoreById(storeId);
+//         const store = await findStoreById(storeId);
 
-        if (!store || store.isDeleted) {
-            throw new Error("STORE_NOT_FOUND");
-        }
+//         if (!store || store.isDeleted) {
+//             throw new Error("STORE_NOT_FOUND");
+//         }
 
-        const storeType = fromStore
-            ? "fromStore"
-            : "toStore";
+//         const storeType: "fromStore" | "toStore" = fromStore
+//             ? "fromStore"
+//             : "toStore";
 
-        const records =
-            storeType === "fromStore"
-                ? await getQualityCheckProducts()
-                : await getTransferredProductsForStore(storeId);
+//         const records =
+//             storeType === "fromStore"
+//                 ? await getQualityCheckProducts()
+//                 : await getTransferredProductsForStore(storeId);
 
-        const filteredProducts = [];
+//         const filteredProducts = [];
 
-        for (const product of records) {
-            const productId = getQualityCheckProductId(product);
+//         for (const product of records) {
+//             const productId = getQualityCheckProductId(product);
 
-            if (
-                !productId ||
-                !mongoose.Types.ObjectId.isValid(productId)
-            ) {
-                continue;
-            }
+//             if (
+//                 !productId ||
+//                 !mongoose.Types.ObjectId.isValid(productId)
+//             ) {
+//                 continue;
+//             }
 
-            const populatedProduct =
-                getPopulatedQualityCheckProduct(product);
+//             const populatedProduct =
+//                 getPopulatedQualityCheckProduct(product);
 
-            const productName =
-                populatedProduct?.productName ??
-                product.productName ??
-                "";
+//             const productName =
+//                 populatedProduct?.productName ??
+//                 product.productName ??
+//                 "";
 
-            if (
-                search?.trim() &&
-                !productName
-                    .toLowerCase()
-                    .includes(search.trim().toLowerCase())
-            ) {
-                continue;
-            }
+//             if (
+//                 search?.trim() &&
+//                 !productName
+//                     .toLowerCase()
+//                     .includes(search.trim().toLowerCase())
+//             ) {
+//                 continue;
+//             }
 
-            const availableQty = await getAvailableQty(
-                storeId,
-                productId,
-            );
+//             const availableQty = await getAvailableQty(
+//                 storeId,
+//                 productId,
+//                 storeType,
+//             );
 
-            if (
-                storeType === "fromStore" &&
-                availableQty <= 0
-            ) {
-                continue;
-            }
+//             if (availableQty <= 0) {
+//                 continue;
+//             }
 
-            if (
-                storeType === "toStore" &&
-                !("transferredQty" in product)
-            ) {
-                continue;
-            }
+//             if (
+//                 storeType === "toStore" &&
+//                 !("transferredQty" in product)
+//             ) {
+//                 continue;
+//             }
 
-            filteredProducts.push({
-                qualityCheckProduct:
-                    storeType === "toStore" && populatedProduct
-                        ? populatedProduct
-                        : productId,
-                productName,
-                rate:
-                    populatedProduct?.purchaseRate ??
-                    ("rate" in product
-                        ? product.rate
-                        : product.purchaseRate),
-                ...(storeType === "toStore" &&
-                    "transferredQty" in product
-                    ? {
-                        transferredQty:
-                            product.transferredQty,
-                    }
-                    : {}),
-                availableQtyAfterTransfer: availableQty,
-            });
-        }
+//             filteredProducts.push({
+//                 qualityCheckProduct:
+//                     storeType === "toStore" && populatedProduct
+//                         ? populatedProduct
+//                         : productId,
+//                 productName,
+//                 rate:
+//                     populatedProduct?.purchaseRate ??
+//                     ("rate" in product
+//                         ? product.rate
+//                         : product.purchaseRate),
+//                 ...(storeType === "toStore" &&
+//                     "transferredQty" in product
+//                     ? {
+//                         transferredQty: product.transferredQty,
+//                     }
+//                     : {}),
+//                 availableQtyAfterTransfer: availableQty,
+//             });
+//         }
 
-        const skip = (page - 1) * limit;
+//         const skip = (page - 1) * limit;
 
-        return {
-            data: filteredProducts.slice(
-                skip,
-                skip + limit,
-            ),
-            totalRecords: filteredProducts.length,
-        };
-    }
+//         return {
+//             data: filteredProducts.slice(skip, skip + limit),
+//             totalRecords: filteredProducts.length,
+//         };
+//     }
 
-    return findAllIndianStoreStockTransfers(
-        page,
-        limit,
-        search,
-    );
-};
+//     return findAllIndianStoreStockTransfers(
+//         page,
+//         limit,
+//         search,
+//     );
+// };

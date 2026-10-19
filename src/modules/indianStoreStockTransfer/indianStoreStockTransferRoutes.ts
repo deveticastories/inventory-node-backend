@@ -146,8 +146,8 @@ router.use(verifyToken);
  *       type: object
  *       properties:
  *         qualityCheckProduct:
- *           type: string
- *           example: "671a12345678901234567890"
+ *           type: object
+ *           description: Purchase Quality Check product details
  *         productName:
  *           type: string
  *           example: "Cotton Fabric"
@@ -231,73 +231,6 @@ router.use(verifyToken);
  *           type: integer
  *           example: 10
  */
-
-/**
- * @swagger
- * /api/indian-store-stock-transfers/products:
- *   get:
- *     summary: Get products and available stock for a store
- *     description: |
- *       fromStore returns Purchase Quality Check products and available stock.
- *       toStore returns products transferred into the selected store,
- *       including transferredQty and availableQty.
- *     tags: [Indian Store Stock Transfers]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: storeId
- *         required: true
- *         schema:
- *           type: string
- *         description: Store MongoDB ObjectId
- *         example: "671a12345678901234567891"
- *       - in: query
- *         name: storeType
- *         required: true
- *         schema:
- *           type: string
- *           enum:
- *             - fromStore
- *             - toStore
- *         description: Source or destination store product list
- *         example: fromStore
- *     responses:
- *       200:
- *         description: Products fetched successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                 data:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/IndianStoreStockTransferProductOption'
- *       400:
- *         description: Invalid store ID or store type
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/IndianStoreStockTransferErrorResponse'
- *       404:
- *         description: Store not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/IndianStoreStockTransferErrorResponse'
- *       500:
- *         description: Internal server error
- */
-router.get(
-    "/products",
-    indianStoreStockTransferController.getIndianStoreStockTransferProductsController,
-);
 
 /**
  * @swagger
@@ -388,7 +321,7 @@ router.post(
  *         example: "671a12345678901234567892"
  *     responses:
  *       200:
- *         description: Transfer history or store stock fetched successfully
+ *         description: Store fetched successfully
  *         content:
  *           application/json:
  *             schema:
