@@ -1,8 +1,8 @@
-
 import mongoose, { Schema, type Document } from "mongoose";
 import { BaseDocument, BaseSchema } from "./baseModel";
 
 export interface PurchaseQualityCheckProduct {
+  _id?: mongoose.Types.ObjectId;
   productName: string;
   totalQty: number;
   purchaseRate: number;
@@ -26,47 +26,44 @@ export type PurchaseQualityCheckDocument =
   PurchaseQualityCheck & Document;
 
 const PurchaseQualityCheckProductSchema: Schema<PurchaseQualityCheckProduct> =
-  new Schema<PurchaseQualityCheckProduct>(
-    {
-      productName: {
-        type: String,
-        required: true,
-        trim: true,
-      },
-      totalQty: {
-        type: Number,
-        required: true,
-        min: 0,
-      },
-      purchaseRate: {
-        type: Number,
-        required: true,
-        min: 0,
-      },
-      damageQty: {
-        type: Number,
-        required: true,
-        min: 0,
-        default: 0,
-      },
-      approvedQty: {
-        type: Number,
-        required: true,
-        min: 0,
-      },
-      availableQtyAfterQC: {
-        type: Number,
-        required: true,
-        min: 0,
-      },
-      payableAfterQC: {
-        type: Number,
-        required: true,
-        min: 0,
-      },
+  new Schema<PurchaseQualityCheckProduct>({
+    productName: {
+      type: String,
+      required: true,
+      trim: true,
     },
-    { _id: false },
-  );
+    totalQty: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    purchaseRate: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    damageQty: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 0,
+    },
+    approvedQty: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    availableQtyAfterQC: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    payableAfterQC: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+  });
 
 const PurchaseQualityCheckSchema: Schema<PurchaseQualityCheckDocument> =
   new Schema<PurchaseQualityCheckDocument>({

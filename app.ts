@@ -10,7 +10,7 @@ import storeRoutes from "./src/modules/store/storeRoutes";
 import customerRoutes from "./src/modules/customer/customerRoutes";
 import purchaseEntryRoutes from "./src/modules/purchaseEntry/purchaseEntryRoutes"
 import purchaseQualityCheckRoutes from "./src/modules/purchaseQualityCheck/purchaseQualityCheckRoutes";
-import storeStockTransferRoutes from "./src/modules/storeStockTransfer/storeStockTransferRoutes";
+import indianStoreStockTransferRoutes from "./src/modules/indianStoreStockTransfer/indianStoreStockTransferRoutes";
 import dailyExpenseRoutes from "./src/modules/dailyExpense/dailyExpenseRoutes";
 import packingListRoutes from "./src/modules/packingList/packingListRoutes";
 import swaggerUi from "swagger-ui-express";
@@ -28,7 +28,7 @@ app.use("/api/stores", storeRoutes);
 app.use("/api/customers", customerRoutes)
 app.use("/api/purchase-entries", purchaseEntryRoutes);
 app.use("/api/purchase-quality-checks", purchaseQualityCheckRoutes);
-app.use("/api/store-stock-transfers", storeStockTransferRoutes);
+app.use("/api/indian-store-stock-transfers", indianStoreStockTransferRoutes);
 app.use("/api/daily-expenses", dailyExpenseRoutes);
 app.use("/api/packing-lists", packingListRoutes);
 export default app;

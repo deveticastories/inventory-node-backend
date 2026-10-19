@@ -125,6 +125,21 @@ export const message = {
     PACKING_LIST_FETCH_FAILED: "Failed to fetch packing list",
     PACKING_LIST_UPDATE_FAILED: "Failed to update packing list",
     PACKING_LIST_DELETE_FAILED: "Failed to delete packing list",
+    INDIAN_STORE_STOCK_TRANSFER_CREATED: "Indian store stock transfer created successfully",
+    INDIAN_STORE_STOCK_TRANSFERS_FETCHED: "Indian store stock transfers fetched successfully",
+    INDIAN_STORE_STOCK_TRANSFER_FETCHED: "Indian store stock transfer fetched successfully",
+    INDIAN_STORE_STOCK_TRANSFER_PRODUCTS_FETCHED: "Quality Check products fetched successfully",
+    INDIAN_STORE_STOCK_TRANSFER_ID_INVALID: "Invalid Indian store stock transfer ID",
+    INDIAN_STORE_STOCK_TRANSFER_NOT_FOUND: "Indian store stock transfer not found",
+    STORE_ID_INVALID: "Invalid store ID",
+    MAIN_STORE_ID_NOT_CONFIGURED: "Main Store ID is not configured",
+    STORES_MUST_BE_DIFFERENT: "Source and destination stores must be different",
+    TRANSFER_PRODUCTS_REQUIRED: "At least one product is required",
+    QUALITY_CHECK_PRODUCT_ID_INVALID: "Invalid Quality Check product ID",
+    QUALITY_CHECK_PRODUCT_NOT_FOUND: "Quality Check product not found",
+    TRANSFER_QUANTITY_INVALID: "Transfer quantity must be a positive integer",
+    DUPLICATE_TRANSFER_PRODUCT: "Duplicate products are not allowed in the same transfer",
+    INSUFFICIENT_STORE_STOCK: "Insufficient available stock in the source store",
 
 
 };
