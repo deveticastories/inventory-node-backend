@@ -1,193 +1,233 @@
 
 import mongoose from "mongoose";
-import IndianStoreStockTransferModel from "../../models/indianStoreStockTransferModel";
-import PurchaseQualityCheckModel from "../../models/purchaseQualityCheckModel";
-import PurchaseEntryModel from "../../models/purchaseEntryModel";
-import StoreModel from "../../models/storeModel";
+import IndianStoreStockTransfer from "../../models/indianStoreStockTransferModel";
+import Store from "../../models/storeModel";
+import QualityCheck from "../../models/purchaseQualityCheckModel";
 
-export const findStoreById = (id: string) => {
-    return StoreModel.findById(id).exec();
+export const findStoreById = async (storeId: string) => {
+    if (!mongoose.isValidObjectId(storeId)) {
+        return null;
+    }
+
+    return Store.findOne({
+        _id: new mongoose.Types.ObjectId(storeId),
+        isDeleted: false,
+    }).exec();
 };
 
 export const findQualityCheckProduct = async (productId: string) => {
-    if (!mongoose.Types.ObjectId.isValid(productId)) return null;
+    if (!mongoose.isValidObjectId(productId)) {
+        return null;
+    }
 
-    return PurchaseQualityCheckModel.findOne({
+    return QualityCheck.findOne({
         "products._id": new mongoose.Types.ObjectId(productId),
         isDeleted: false,
     }).exec();
 };
 
-export const getAvailableQty = async (
-    storeId: string,
-    productId: string,
-    storeType: "fromStore" | "toStore" = "fromStore",
-): Promise<number> => {
- 
-
-    if (
-        !mongoose.Types.ObjectId.isValid(storeId) ||
-        !mongoose.Types.ObjectId.isValid(productId)
-    ) {
-        console.log("Invalid storeId or productId");
-        return 0;
+export const getQualityCheckProducts = async (storeId: string) => {
+    if (!mongoose.isValidObjectId(storeId)) {
+        return [];
     }
 
-    const storeObjectId = new mongoose.Types.ObjectId(storeId);
-    const productObjectId = new mongoose.Types.ObjectId(productId);
-
-    const qualityCheck = await PurchaseQualityCheckModel.findOne({
-        "products._id": productObjectId,
+    const qualityChecks = await QualityCheck.find({
+        store: new mongoose.Types.ObjectId(storeId),
         isDeleted: false,
     }).exec();
 
-    console.log("Quality check found:", !!qualityCheck);
-
-    const qualityCheckProduct = qualityCheck?.products.find(
-        (product: any) =>
-            product._id?.toString() === productObjectId.toString(),
+    return qualityChecks.flatMap((qualityCheck: any) =>
+        (qualityCheck.products ?? []).map((product: any) => ({
+            _id: product._id,
+            qualityCheckProduct: product,
+            productName: product.productName,
+            rate: product.rate ?? 0,
+            availableQty: product.availableQty ?? product.qty ?? 0,
+        })),
     );
+};
+export const getTransferredProductsForStore = async (storeId: string) => {
+    if (!mongoose.isValidObjectId(storeId)) {
+        return [];
+    }
 
-    if (!qualityCheckProduct) {
-        console.log("Quality check product not found");
+    const transfers = await IndianStoreStockTransfer.find({
+        toStore: new mongoose.Types.ObjectId(storeId),
+        isDeleted: false,
+    })
+        .populate("fromStore")
+        .populate("toStore")
+        .sort({ createdAt: -1 })
+        .exec();
+
+    const results: any[] = [];
+
+    for (const transfer of transfers) {
+        for (const product of transfer.products ?? []) {
+            const qualityCheckProductId =
+                (product.qualityCheckProduct as any)?._id ??
+                product.qualityCheckProduct;
+
+            const qualityCheck = mongoose.isValidObjectId(
+                qualityCheckProductId,
+            )
+                ? await QualityCheck.findOne({
+                    "products._id": new mongoose.Types.ObjectId(
+                        qualityCheckProductId.toString(),
+                    ),
+                    isDeleted: false,
+                })
+                    .lean()
+                    .exec()
+                : null;
+
+            const qualityCheckProduct =
+                qualityCheck?.products?.find(
+                    (qcProduct: any) =>
+                        qcProduct._id?.toString() ===
+                        qualityCheckProductId?.toString(),
+                ) ?? null;
+
+            results.push({
+                _id: product._id,
+                indianStoreStockTransfer: transfer.toObject(),
+                indianStoreStockTransferProduct: product.toObject(),
+                qualityCheckProduct,
+                productName:
+                    qualityCheckProduct?.productName ?? product.productName,
+                transferredQty: product.transferredQty,
+                availableQty: product.availableQty,
+                rate: product.rate,
+                total: product.total,
+                fromStore: transfer.fromStore,
+                toStore: transfer.toStore,
+                transferDate: transfer.transferDate,
+                createdAt: transfer.createdAt,
+            });
+        }
+    }
+
+    return results;
+};
+
+export const getAvailableQty = async (
+    storeId: string,
+    qualityCheckProductId: string,
+    excludeTransferId?: string,
+): Promise<number> => {
+    console.log("========== getAvailableQty START ==========");
+    console.log("storeId:", storeId);
+    console.log("qualityCheckProductId:", qualityCheckProductId);
+    console.log("excludeTransferId:", excludeTransferId);
+
+    if (
+        !mongoose.isValidObjectId(storeId) ||
+        !mongoose.isValidObjectId(qualityCheckProductId)
+    ) {
+        console.log("Invalid storeId:", mongoose.isValidObjectId(storeId));
+        console.log(
+            "Invalid qualityCheckProductId:",
+            mongoose.isValidObjectId(qualityCheckProductId),
+        );
+        console.log("Returning quantity: 0");
+        console.log("========== getAvailableQty END ==========");
+
         return 0;
     }
 
-    const approvedQty = qualityCheckProduct.approvedQty ?? 0;
+    const match: Record<string, unknown> = {
+        toStore: new mongoose.Types.ObjectId(storeId),
+        isDeleted: false,
+    };
 
-    console.log("Product name:", (qualityCheckProduct as any).productName);
-    console.log("Approved quantity:", approvedQty);
-
-    const transfers = await IndianStoreStockTransferModel.aggregate([
-        {
-            $match: {
-                isDeleted: false,
-                $or: [
-                    { fromStore: storeObjectId },
-                    { toStore: storeObjectId },
-                ],
-            },
-        },
-        { $unwind: "$products" },
-        {
-            $match: {
-                "products.qualityCheckProduct": productObjectId,
-            },
-        },
-        {
-            $group: {
-                _id: null,
-                transferredIn: {
-                    $sum: {
-                        $cond: [
-                            { $eq: ["$toStore", storeObjectId] },
-                            {
-                                $ifNull: [
-                                    "$products.transferredQty",
-                                    "$products.qty",
-                                ],
-                            },
-                            0,
-                        ],
-                    },
-                },
-                transferredOut: {
-                    $sum: {
-                        $cond: [
-                            { $eq: ["$fromStore", storeObjectId] },
-                            {
-                                $ifNull: [
-                                    "$products.transferredQty",
-                                    "$products.qty",
-                                ],
-                            },
-                            0,
-                        ],
-                    },
-                },
-                transferRecords: { $sum: 1 },
-            },
-        },
-    ]).exec();
-
-    console.log("Transfer aggregation result:", transfers);
-
-    const transferredIn = transfers[0]?.transferredIn ?? 0;
-    const transferredOut = transfers[0]?.transferredOut ?? 0;
-
-    let availableQty: number;
-
-    if (storeType === "fromStore") {
-        availableQty = Math.max(0, approvedQty - transferredOut);
-    } else {
-        availableQty = Math.max(0, transferredIn - transferredOut);
+    if (
+        excludeTransferId &&
+        mongoose.isValidObjectId(excludeTransferId)
+    ) {
+        match._id = {
+            $ne: new mongoose.Types.ObjectId(excludeTransferId),
+        };
     }
 
+    console.log("MongoDB match query:", match);
 
-    return availableQty;
+    const transfers = await IndianStoreStockTransfer.find(match)
+        .select("products toStore fromStore isDeleted")
+        .lean()
+        .exec();
+
+    console.log("Transfers found:", transfers.length);
+    console.log("All fetched transfers:", JSON.stringify(transfers, null, 2));
+
+    let transferredQty = 0;
+
+    for (const transfer of transfers as any[]) {
+        console.log("----------------------------------------");
+        console.log("Transfer ID:", transfer._id);
+        console.log("From store:", transfer.fromStore);
+        console.log("To store:", transfer.toStore);
+        console.log("Deleted:", transfer.isDeleted);
+        console.log("Products in transfer:", transfer.products);
+
+        for (const product of transfer.products ?? []) {
+            console.log("Product ID:", product._id);
+            console.log(
+                "Quality check product ID:",
+                product.qualityCheckProduct,
+            );
+            console.log("Product name:", product.productName);
+            console.log("Transferred quantity:", product.transferredQty);
+            console.log("Rate:", product.rate);
+            console.log("Total:", product.total);
+
+            const matches =
+                product.qualityCheckProduct?.toString() ===
+                qualityCheckProductId;
+
+            console.log("Matches requested product:", matches);
+
+            if (matches) {
+                const qty = Number(product.transferredQty ?? 0);
+                transferredQty += qty;
+
+                console.log("Quantity added:", qty);
+                console.log("Running total:", transferredQty);
+            }
+        }
+    }
+
+    console.log("Final transferred quantity:", transferredQty);
+    console.log("========== getAvailableQty END ==========");
+
+    return transferredQty;
 };
 
 export const createIndianStoreStockTransfer = async (
-    data: Record<string, unknown>,
+    transferData: Record<string, unknown>,
 ) => {
-    const transfer = await IndianStoreStockTransferModel.create(data);
+    const transfer = new IndianStoreStockTransfer(transferData);
+    await transfer.save();
 
-    return IndianStoreStockTransferModel.findById(transfer._id)
+    return IndianStoreStockTransfer.findById(transfer._id)
         .populate("fromStore")
         .populate("toStore")
         .populate("products.qualityCheckProduct")
         .exec();
 };
 
-export const findIndianStoreStockTransferById = (id: string) => {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        return Promise.resolve(null);
+export const findIndianStoreStockTransferById = async (id: string) => {
+    if (!mongoose.isValidObjectId(id)) {
+        return null;
     }
 
-    return IndianStoreStockTransferModel.aggregate([
-        {
-            $match: {
-                _id: new mongoose.Types.ObjectId(id),
-                isDeleted: false,
-            },
-        },
-        {
-            $lookup: {
-                from: "stores",
-                localField: "fromStore",
-                foreignField: "_id",
-                as: "fromStore",
-            },
-        },
-        {
-            $unwind: {
-                path: "$fromStore",
-                preserveNullAndEmptyArrays: true,
-            },
-        },
-        {
-            $lookup: {
-                from: "stores",
-                localField: "toStore",
-                foreignField: "_id",
-                as: "toStore",
-            },
-        },
-        {
-            $unwind: {
-                path: "$toStore",
-                preserveNullAndEmptyArrays: true,
-            },
-        },
-        {
-            $lookup: {
-                from: "purchasequalitychecks",
-                localField: "products.qualityCheckProduct",
-                foreignField: "products._id",
-                as: "qualityChecks",
-            },
-        },
-    ]).exec().then((result) => result[0] ?? null);
+    return IndianStoreStockTransfer.findOne({
+        _id: new mongoose.Types.ObjectId(id),
+        isDeleted: false,
+    })
+        .populate("fromStore")
+        .populate("toStore")
+        .populate("products.qualityCheckProduct")
+        .exec();
 };
 
 export const findAllIndianStoreStockTransfers = async (
@@ -197,173 +237,82 @@ export const findAllIndianStoreStockTransfers = async (
     fromStore?: string,
     toStore?: string,
 ) => {
-    const filter: Record<string, unknown> = {
+    const filter: Record<string, any> = {
         isDeleted: false,
     };
 
-    if (search) {
-        filter["products.productName"] = {
-            $regex: search,
-            $options: "i",
-        };
-    }
-
-    if (fromStore && mongoose.Types.ObjectId.isValid(fromStore)) {
+    if (fromStore) {
         filter.fromStore = new mongoose.Types.ObjectId(fromStore);
     }
 
-    if (toStore && mongoose.Types.ObjectId.isValid(toStore)) {
+    if (toStore) {
         filter.toStore = new mongoose.Types.ObjectId(toStore);
     }
 
-    const [data, totalRecords] = await Promise.all([
-        IndianStoreStockTransferModel.find(filter)
+    if (search) {
+        filter.$or = [
+            { transferId: { $regex: search, $options: "i" } },
+            { "products.productName": { $regex: search, $options: "i" } },
+        ];
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [transfers, totalRecords] = await Promise.all([
+        IndianStoreStockTransfer.find(filter)
             .populate("fromStore")
             .populate("toStore")
             .populate("products.qualityCheckProduct")
             .sort({ createdAt: -1 })
-            .skip((page - 1) * limit)
+            .skip(skip)
             .limit(limit)
+            .lean()
             .exec(),
-        IndianStoreStockTransferModel.countDocuments(filter),
+        IndianStoreStockTransfer.countDocuments(filter),
     ]);
 
-    return { data, totalRecords };
-};
-export const getQualityCheckProducts = async () => {
-    const qualityChecks = await PurchaseQualityCheckModel.find({
-        isDeleted: false,
-    })
-        .populate({
-            path: "purchaseEntry",
-            populate: {
-                path: "vendor",
-            },
-        })
-        .lean()
-        .exec();
-
-    return qualityChecks.flatMap((qualityCheck: any) =>
-        (qualityCheck.products ?? []).map((product: any) => {
-            const purchaseEntry = qualityCheck.purchaseEntry as any;
-
-            return {
-                ...product,
-                qualityCheckProduct: {
-                    ...product,
-                    purchaseDate: purchaseEntry?.purchaseDate ?? null,
-                    invoiceNo: purchaseEntry?.invoiceNo ?? null,
-                    vendor: purchaseEntry?.vendor ?? null,
-                },
-                productName: product.productName,
-                rate: product.purchaseRate,
-                purchaseRate: product.purchaseRate,
-                approvedQty: product.approvedQty,
-                availableQtyAfterQC: product.availableQtyAfterQC,
-            };
-        }),
-    );
-};
-export const getTransferredProductsForStore = async (
+    return {
+        data: transfers,
+        pagination: {
+            currentPage: page,
+            limit,
+            totalRecords,
+            totalPages: Math.ceil(totalRecords / limit),
+            hasPreviousPage: page > 1,
+            hasNextPage: page < Math.ceil(totalRecords / limit),
+        },
+    };
+}; export const getTransferredProductsFromStore = async (
     storeId: string,
 ) => {
-    const transfers = await IndianStoreStockTransferModel.aggregate([
-        {
-            $match: {
-                toStore: new mongoose.Types.ObjectId(storeId),
-                isDeleted: false,
-            },
-        },
-        { $unwind: "$products" },
-        {
-            $group: {
-                _id: "$products.qualityCheckProduct",
-                transferredQty: {
-                    $sum: {
-                        $ifNull: [
-                            "$products.transferredQty",
-                            "$products.qty",
-                        ],
-                    },
-                },
-            },
-        },
-        {
-            $lookup: {
-                from: "purchasequalitychecks",
-                let: { productId: "$_id" },
-                pipeline: [
-                    { $match: { isDeleted: false } },
-                    { $unwind: "$products" },
-                    {
-                        $match: {
-                            $expr: {
-                                $eq: ["$products._id", "$$productId"],
-                            },
-                        },
-                    },
-                    {
-                        $lookup: {
-                            from: "purchaseentries",
-                            localField: "purchaseEntry",
-                            foreignField: "_id",
-                            as: "purchaseEntry",
-                        },
-                    },
-                    {
-                        $unwind: {
-                            path: "$purchaseEntry",
-                            preserveNullAndEmptyArrays: true,
-                        },
-                    },
-                    {
-                        $lookup: {
-                            from: "vendors",
-                            localField: "purchaseEntry.vendor",
-                            foreignField: "_id",
-                            as: "vendor",
-                        },
-                    },
-                    {
-                        $unwind: {
-                            path: "$vendor",
-                            preserveNullAndEmptyArrays: true,
-                        },
-                    },
-                    {
-                        $project: {
-                            _id: "$products._id",
-                            productName: "$products.productName",
-                            totalQty: "$products.totalQty",
-                            purchaseRate: "$products.purchaseRate",
-                            damageQty: "$products.damageQty",
-                            approvedQty: "$products.approvedQty",
-                            availableQtyAfterQC: "$products.availableQtyAfterQC",
-                            purchaseDate: "$purchaseEntry.purchaseDate",
-                            invoiceNo: "$purchaseEntry.invoiceNo",
-                            vendor: "$vendor",
-                        },
-                    },
-                ],
-                as: "qualityCheckProduct",
-            },
-        },
-        {
-            $unwind: {
-                path: "$qualityCheckProduct",
-                preserveNullAndEmptyArrays: true,
-            },
-        },
-        {
-            $project: {
-                _id: 1,
-                qualityCheckProduct: "$qualityCheckProduct",
-                productName: "$qualityCheckProduct.productName",
-                rate: "$qualityCheckProduct.purchaseRate",
-                transferredQty: 1,
-            },
-        },
-    ]).exec();
+    if (!mongoose.isValidObjectId(storeId)) {
+        return [];
+    }
 
-    return transfers;
+    const transfers = await IndianStoreStockTransfer.find({
+        fromStore: new mongoose.Types.ObjectId(storeId),
+        isDeleted: false,
+    })
+        .populate("fromStore")
+        .populate("toStore")
+        .sort({ createdAt: -1 })
+        .exec();
+
+    return transfers.flatMap((transfer: any) =>
+        (transfer.products ?? []).map((product: any) => ({
+            _id: product._id,
+            indianStoreStockTransfer: transfer.toObject(),
+            indianStoreStockTransferProduct: product.toObject(),
+            qualityCheckProduct: product.qualityCheckProduct,
+            productName: product.productName,
+            transferredQty: product.transferredQty,
+            availableQty: product.availableQty,
+            rate: product.rate,
+            total: product.total,
+            fromStore: transfer.fromStore,
+            toStore: transfer.toStore,
+            transferDate: transfer.transferDate,
+            createdAt: transfer.createdAt,
+        })),
+    );
 };

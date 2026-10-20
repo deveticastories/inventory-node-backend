@@ -1,14 +1,11 @@
-
 import mongoose, { Schema, type Document } from "mongoose";
 import { BaseDocument, BaseSchema } from "./baseModel";
 
 export interface PackingStyle {
-    date: Date;
     styleNo: string;
-    productName: string;
-    vendorName: mongoose.Types.ObjectId;
+    indianStoreStockTransfer: mongoose.Types.ObjectId;
+    indianStoreStockTransferProduct: mongoose.Types.ObjectId;
     qty: number;
-    availableQuantity: number;
 }
 
 export type PackingListStatus =
@@ -31,35 +28,24 @@ export type PackingListDocument = PackingList & Document;
 
 const PackingStyleSchema: Schema<PackingStyle> = new Schema(
     {
-        date: {
-            type: Date,
-            required: true,
-        },
         styleNo: {
             type: String,
             required: true,
             trim: true,
         },
-        productName: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        vendorName: {
+        indianStoreStockTransfer: {
             type: Schema.Types.ObjectId,
-            ref: "Vendor",
+            ref: "IndianStoreStockTransfer",
+            required: true,
+        },
+        indianStoreStockTransferProduct: {
+            type: Schema.Types.ObjectId,
             required: true,
         },
         qty: {
             type: Number,
             required: true,
             min: 1,
-        },
-        availableQuantity: {
-            type: Number,
-            required: true,
-            min: 0,
-            default: 0,
         },
     },
     { _id: true }
@@ -118,6 +104,8 @@ PackingListSchema.add(BaseSchema);
 
 PackingListSchema.index({ packingDate: -1 });
 PackingListSchema.index({ packingListStatus: 1 });
+PackingListSchema.index({ "styles.indianStoreStockTransfer": 1 });
+PackingListSchema.index({ "styles.indianStoreStockTransferProduct": 1 });
 
 const PackingListModel =
     mongoose.models.PackingList ||

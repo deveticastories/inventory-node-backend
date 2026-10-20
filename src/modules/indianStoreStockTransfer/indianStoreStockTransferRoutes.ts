@@ -69,6 +69,10 @@ router.use(verifyToken);
  *         - rate
  *         - total
  *       properties:
+ *         _id:
+ *           type: string
+ *           description: Embedded transfer product ID
+ *           example: "671a12345678901234567894"
  *         qualityCheckProduct:
  *           type: string
  *           description: Purchase Quality Check product subdocument ID
@@ -82,9 +86,9 @@ router.use(verifyToken);
  *           description: Quantity transferred in this transfer record
  *           example: 10
  *         availableQty:
- *           type: integer
+ *           type: number
  *           minimum: 0
- *           description: Remaining source-store quantity recorded when the transfer was created
+ *           description: Source-store quantity recorded when the transfer was created
  *           example: 90
  *         rate:
  *           type: number
@@ -145,9 +149,24 @@ router.use(verifyToken);
  *     IndianStoreStockTransferProductOption:
  *       type: object
  *       properties:
+ *         _id:
+ *           type: string
+ *           description: Embedded transfer product ID
+ *           example: "671a12345678901234567894"
+ *         indianStoreStockTransfer:
+ *           type: string
+ *           description: Parent stock transfer ID
+ *           example: "671a12345678901234567893"
+ *         indianStoreStockTransferProduct:
+ *           type: string
+ *           description: Embedded product ID within the stock transfer
+ *           example: "671a12345678901234567894"
  *         qualityCheckProduct:
- *           type: object
- *           description: Purchase Quality Check product details
+ *           description: Linked quality-check product
+ *           oneOf:
+ *             - type: string
+ *             - type: object
+ *               additionalProperties: true
  *         productName:
  *           type: string
  *           example: "Cotton Fabric"
@@ -156,11 +175,11 @@ router.use(verifyToken);
  *           example: 125.5
  *         transferredQty:
  *           type: integer
- *           description: Total quantity transferred into the selected destination store
+ *           description: Quantity transferred into the destination store
  *           example: 42
- *         availableQty:
- *           type: integer
- *           description: Remaining stock currently available in the selected store
+ *         availableQtyAfterTransfer:
+ *           type: number
+ *           description: Available quantity returned by the service
  *           example: 35
  *
  *     IndianStoreStockTransferSuccessResponse:
@@ -280,9 +299,10 @@ router.post(
  *     summary: Get transfer history or products filtered by store
  *     description: |
  *       Without store filters, returns transfer history.
- *       With fromStore, returns QC products and available stock for the source store.
- *       With toStore, returns products transferred into the destination store.
- *       Destination products include transferredQty and availableQty.
+ *       With fromStore, returns quality-check products and available stock for the source store.
+ *       With toStore, returns products transferred into the destination store, including
+ *       the parent transfer ID and embedded transfer product ID.
+ *       Destination product availability is returned as availableQtyAfterTransfer.
  *       Only one store filter can be supplied at a time.
  *     tags: [Indian Store Stock Transfers]
  *     security:
@@ -321,7 +341,7 @@ router.post(
  *         example: "671a12345678901234567892"
  *     responses:
  *       200:
- *         description: Store fetched successfully
+ *         description: Transfer history or store products fetched successfully
  *         content:
  *           application/json:
  *             schema:

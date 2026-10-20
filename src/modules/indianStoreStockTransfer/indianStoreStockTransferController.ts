@@ -1,4 +1,3 @@
-
 import type { Request, Response } from "express";
 import {
     getIndianStoreStockTransferProducts,
@@ -32,7 +31,7 @@ export const getIndianStoreStockTransferProductsController = async (
         if (!storeId) {
             res.status(statusCode.BAD_REQUEST).json({
                 success: false,
-                message: "STORE_ID_REQUIRED",
+                message: message.STORE_ID_REQUIRED,
             });
             return;
         }
@@ -40,7 +39,7 @@ export const getIndianStoreStockTransferProductsController = async (
         if (storeType !== "fromStore" && storeType !== "toStore") {
             res.status(statusCode.BAD_REQUEST).json({
                 success: false,
-                message: "STORE_TYPE_INVALID",
+                message: message.STORE_TYPE_INVALID,
             });
             return;
         }
@@ -61,12 +60,16 @@ export const getIndianStoreStockTransferProductsController = async (
                 ? error.message
                 : message.INTERNAL_SERVER_ERROR;
 
-        const status =
-            errorMessage === "STORE_ID_INVALID"
-                ? statusCode.BAD_REQUEST
-                : errorMessage === "STORE_NOT_FOUND"
-                  ? statusCode.NOT_FOUND
-                  : statusCode.INTERNAL_SERVER_ERROR;
+        const badRequestErrors = [
+            "STORE_ID_INVALID",
+            "STORE_TYPE_INVALID",
+        ];
+
+        const status = badRequestErrors.includes(errorMessage)
+            ? statusCode.BAD_REQUEST
+            : errorMessage === "STORE_NOT_FOUND"
+                ? statusCode.NOT_FOUND
+                : statusCode.INTERNAL_SERVER_ERROR;
 
         res.status(status).json({
             success: false,
@@ -77,11 +80,11 @@ export const getIndianStoreStockTransferProductsController = async (
 
 export const createIndianStoreStockTransferController = async (
     req: RequestWithAuthData,
-    res: Response
+    res: Response,
 ): Promise<void> => {
     try {
         const transfer = await createIndianStoreStockTransferService(
-            req.body
+            req.body,
         );
 
         res.status(statusCode.CREATED).json({
@@ -114,8 +117,8 @@ export const createIndianStoreStockTransferController = async (
         const status = badRequestErrors.includes(errorMessage)
             ? statusCode.BAD_REQUEST
             : notFoundErrors.includes(errorMessage)
-              ? statusCode.NOT_FOUND
-              : statusCode.INTERNAL_SERVER_ERROR;
+                ? statusCode.NOT_FOUND
+                : statusCode.INTERNAL_SERVER_ERROR;
 
         res.status(status).json({
             success: false,
@@ -126,7 +129,7 @@ export const createIndianStoreStockTransferController = async (
 
 export const getIndianStoreStockTransferByIdController = async (
     req: Request,
-    res: Response
+    res: Response,
 ): Promise<void> => {
     try {
         const id = req.params.id;
@@ -156,8 +159,8 @@ export const getIndianStoreStockTransferByIdController = async (
             errorMessage === "INDIAN_STORE_STOCK_TRANSFER_ID_INVALID"
                 ? statusCode.BAD_REQUEST
                 : errorMessage === "INDIAN_STORE_STOCK_TRANSFER_NOT_FOUND"
-                  ? statusCode.NOT_FOUND
-                  : statusCode.INTERNAL_SERVER_ERROR;
+                    ? statusCode.NOT_FOUND
+                    : statusCode.INTERNAL_SERVER_ERROR;
 
         res.status(status).json({
             success: false,
@@ -168,7 +171,7 @@ export const getIndianStoreStockTransferByIdController = async (
 
 export const getAllIndianStoreStockTransfersController = async (
     req: Request,
-    res: Response
+    res: Response,
 ): Promise<void> => {
     try {
         const { page, limit } = getPaginationParams(req.query);
@@ -191,7 +194,7 @@ export const getAllIndianStoreStockTransfersController = async (
         if (fromStore && toStore) {
             res.status(statusCode.BAD_REQUEST).json({
                 success: false,
-                message: "USE_ONLY_ONE_STORE_FILTER",
+                message: message.USE_ONLY_ONE_STORE_FILTER,
             });
             return;
         }
@@ -201,7 +204,7 @@ export const getAllIndianStoreStockTransfersController = async (
             limit,
             search,
             fromStore,
-            toStore
+            toStore,
         );
 
         res.status(statusCode.OK).json({
@@ -211,7 +214,7 @@ export const getAllIndianStoreStockTransfersController = async (
             pagination: getPaginationMeta(
                 page,
                 limit,
-                result.totalRecords
+                result.totalRecords,
             ),
         });
     } catch (error) {
@@ -220,12 +223,16 @@ export const getAllIndianStoreStockTransfersController = async (
                 ? error.message
                 : message.INTERNAL_SERVER_ERROR;
 
-        const status =
-            errorMessage === "STORE_ID_INVALID"
-                ? statusCode.BAD_REQUEST
-                : errorMessage === "STORE_NOT_FOUND"
-                  ? statusCode.NOT_FOUND
-                  : statusCode.INTERNAL_SERVER_ERROR;
+        const badRequestErrors = [
+            "STORE_ID_INVALID",
+            "ONLY_ONE_STORE_FILTER_ALLOWED",
+        ];
+
+        const status = badRequestErrors.includes(errorMessage)
+            ? statusCode.BAD_REQUEST
+            : errorMessage === "STORE_NOT_FOUND"
+                ? statusCode.NOT_FOUND
+                : statusCode.INTERNAL_SERVER_ERROR;
 
         res.status(status).json({
             success: false,

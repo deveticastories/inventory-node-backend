@@ -1,4 +1,3 @@
-
 import mongoose from "mongoose";
 import PackingList from "../../models/packingListModel";
 import { getPaginationMeta } from "../../utils/pagination";
@@ -6,10 +5,10 @@ import { getPaginationMeta } from "../../utils/pagination";
 const packingListAggregation = [
     {
         $lookup: {
-            from: "vendors",
-            localField: "styles.vendorName",
+            from: "indianstorestocktransfers",
+            localField: "styles.indianStoreStockTransfer",
             foreignField: "_id",
-            as: "vendors",
+            as: "stockTransfers",
         },
     },
     {
@@ -27,21 +26,44 @@ const packingListAggregation = [
                     input: { $ifNull: ["$styles", []] },
                     as: "style",
                     in: {
-                        $mergeObjects: [
-                            "$$style",
-                            {
-                                vendorName: {
-                                    $ifNull: [
+                        $let: {
+                            vars: {
+                                stockTransfer: {
+                                    $arrayElemAt: [
                                         {
+                                            $filter: {
+                                                input: "$stockTransfers",
+                                                as: "transfer",
+                                                cond: {
+                                                    $eq: [
+                                                        "$$transfer._id",
+                                                        "$$style.indianStoreStockTransfer",
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                        0,
+                                    ],
+                                },
+                            },
+                            in: {
+                                $let: {
+                                    vars: {
+                                        selectedProduct: {
                                             $arrayElemAt: [
                                                 {
                                                     $filter: {
-                                                        input: "$vendors",
-                                                        as: "vendor",
+                                                        input: {
+                                                            $ifNull: [
+                                                                "$$stockTransfer.products",
+                                                                [],
+                                                            ],
+                                                        },
+                                                        as: "product",
                                                         cond: {
                                                             $eq: [
-                                                                "$$vendor._id",
-                                                                "$$style.vendorName",
+                                                                "$$product._id",
+                                                                "$$style.indianStoreStockTransferProduct",
                                                             ],
                                                         },
                                                     },
@@ -49,11 +71,29 @@ const packingListAggregation = [
                                                 0,
                                             ],
                                         },
-                                        "$$style.vendorName",
-                                    ],
+                                    },
+                                    in: {
+                                        $mergeObjects: [
+                                            "$$style",
+                                            {
+                                                productDetails: {
+                                                    $ifNull: [
+                                                        "$$selectedProduct",
+                                                        null,
+                                                    ],
+                                                },
+                                                indianStoreStockTransfer: {
+                                                    $ifNull: [
+                                                        "$$stockTransfer",
+                                                        "$$style.indianStoreStockTransfer",
+                                                    ],
+                                                },
+                                            },
+                                        ],
+                                    },
                                 },
                             },
-                        ],
+                        },
                     },
                 },
             },
@@ -115,7 +155,7 @@ const packingListAggregation = [
     },
     {
         $project: {
-            vendors: 0,
+            stockTransfers: 0,
             expenseDetails: 0,
         },
     },
@@ -129,6 +169,10 @@ export const create = async (
 };
 
 export const findById = async (id: string) => {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        return null;
+    }
+
     const result = await PackingList.aggregate([
         {
             $match: {
@@ -170,9 +214,13 @@ export const updateById = async (
     id: string,
     updateData: Record<string, unknown>
 ) => {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        return null;
+    }
+
     return PackingList.findOneAndUpdate(
         {
-            _id: id,
+            _id: new mongoose.Types.ObjectId(id),
             isDeleted: false,
         },
         {
@@ -189,9 +237,13 @@ export const deletePackingList = async (
     id: string,
     deletedBy: mongoose.Types.ObjectId
 ) => {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        return null;
+    }
+
     return PackingList.findOneAndUpdate(
         {
-            _id: id,
+            _id: new mongoose.Types.ObjectId(id),
             isDeleted: false,
         },
         {

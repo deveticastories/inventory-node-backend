@@ -1,8 +1,8 @@
-
 import mongoose, { Schema, type Document } from "mongoose";
 import { BaseDocument, BaseSchema } from "./baseModel";
 
 export interface IndianStoreStockTransferProduct {
+    _id?: mongoose.Types.ObjectId;
     qualityCheckProduct: mongoose.Types.ObjectId;
     productName: string;
     transferredQty: number;
@@ -22,8 +22,8 @@ export interface IndianStoreStockTransfer extends BaseDocument {
 export type IndianStoreStockTransferDocument =
     IndianStoreStockTransfer & Document;
 
-const IndianStoreStockTransferProductSchema = new Schema(
-    {
+const IndianStoreStockTransferProductSchema: Schema =
+    new Schema({
         qualityCheckProduct: {
             type: Schema.Types.ObjectId,
             required: true,
@@ -61,44 +61,44 @@ const IndianStoreStockTransferProductSchema = new Schema(
             default: 0,
             min: 0,
         },
-    },
-    { _id: false }
-);
+    });
 
-const IndianStoreStockTransferSchema = new Schema(
-    {
-        fromStore: {
-            type: Schema.Types.ObjectId,
-            ref: "Store",
-            required: true,
-        },
-        toStore: {
-            type: Schema.Types.ObjectId,
-            ref: "Store",
-            required: true,
-        },
-        products: {
-            type: [IndianStoreStockTransferProductSchema],
-            required: true,
-            validate: {
-                validator: (products: IndianStoreStockTransferProduct[]) =>
-                    products.length > 0,
-                message: "At least one product is required",
+const IndianStoreStockTransferSchema: Schema<IndianStoreStockTransfer> =
+    new Schema(
+        {
+            fromStore: {
+                type: Schema.Types.ObjectId,
+                ref: "Store",
+                required: true,
+            },
+            toStore: {
+                type: Schema.Types.ObjectId,
+                ref: "Store",
+                required: true,
+            },
+            products: {
+                type: [IndianStoreStockTransferProductSchema],
+                required: true,
+                validate: {
+                    validator: (
+                        products: IndianStoreStockTransferProduct[],
+                    ) => products.length > 0,
+                    message: "At least one product is required",
+                },
+            },
+            transferDate: {
+                type: Date,
+                required: true,
+                default: Date.now,
+            },
+            stockValue: {
+                type: Number,
+                default: 0,
+                min: 0,
             },
         },
-        transferDate: {
-            type: Date,
-            required: true,
-            default: Date.now,
-        },
-        stockValue: {
-            type: Number,
-            default: 0,
-            min: 0,
-        },
-    },
-    { timestamps: true }
-);
+        { timestamps: true },
+    );
 
 IndianStoreStockTransferSchema.add(BaseSchema);
 
@@ -110,7 +110,7 @@ IndianStoreStockTransferSchema.pre("validate", function () {
     ) {
         this.invalidate(
             "toStore",
-            "Source and destination stores must be different"
+            "Source and destination stores must be different",
         );
     }
 
@@ -132,7 +132,7 @@ const IndianStoreStockTransferModel =
     mongoose.models.IndianStoreStockTransfer ||
     mongoose.model<IndianStoreStockTransferDocument>(
         "IndianStoreStockTransfer",
-        IndianStoreStockTransferSchema
+        IndianStoreStockTransferSchema,
     );
 
 export default IndianStoreStockTransferModel;

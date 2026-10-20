@@ -20,34 +20,26 @@ router.use(verifyToken);
  *     PackingStyle:
  *       type: object
  *       required:
- *         - date
  *         - styleNo
- *         - productName
- *         - vendorName
+ *         - indianStoreStockTransfer
+ *         - indianStoreStockTransferProduct
  *         - qty
  *       properties:
- *         date:
- *           type: string
- *           format: date-time
- *           example: "2026-10-18T00:00:00.000Z"
  *         styleNo:
  *           type: string
  *           example: STY001
- *         productName:
+ *         indianStoreStockTransfer:
  *           type: string
- *           example: Cotton Shirt
- *         vendorName:
- *           type: string
- *           description: Vendor MongoDB ObjectId
+ *           description: Indian Store Stock Transfer MongoDB ObjectId
  *           example: "68f1a1234567890123456789"
+ *         indianStoreStockTransferProduct:
+ *           type: string
+ *           description: Product subdocument ID from the transfer's products array
+ *           example: "68f1a1234567890123456788"
  *         qty:
  *           type: number
  *           minimum: 1
  *           example: 100
- *         availableQuantity:
- *           type: number
- *           minimum: 0
- *           example: 75
  *
  *     CreatePackingList:
  *       type: object
@@ -119,6 +111,14 @@ router.use(verifyToken);
  *               type: string
  *               readOnly: true
  *               example: PACK001
+ *             totalQty:
+ *               type: number
+ *               readOnly: true
+ *               example: 100
+ *             totalExpense:
+ *               type: number
+ *               readOnly: true
+ *               example: 1500
  *             packingListStatus:
  *               type: string
  *               enum:
@@ -135,6 +135,18 @@ router.use(verifyToken);
  *             updatedAt:
  *               type: string
  *               format: date-time
+ *
+ *     PackingListResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *           example: true
+ *         message:
+ *           type: string
+ *           example: Packing list fetched successfully
+ *         data:
+ *           $ref: '#/components/schemas/PackingList'
  */
 
 /**
@@ -142,7 +154,7 @@ router.use(verifyToken);
  * /api/packing-lists:
  *   post:
  *     summary: Create a packing list
- *     description: Packing ID is generated automatically by the server.
+ *     description: Packing ID, total quantity, and total expense are generated or calculated by the server.
  *     tags: [Packing Lists]
  *     security:
  *       - bearerAuth: []
@@ -155,10 +167,18 @@ router.use(verifyToken);
  *     responses:
  *       201:
  *         description: Packing list created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PackingListResponse'
  *       400:
  *         description: Invalid packing list data
  *       401:
  *         description: Unauthorized
+ *       409:
+ *         description: Packing list creation conflict
+ *       500:
+ *         description: Internal server error
  */
 router.post("/", packingListController.createPackingList);
 
@@ -167,6 +187,7 @@ router.post("/", packingListController.createPackingList);
  * /api/packing-lists:
  *   get:
  *     summary: Get all packing lists
+ *     description: Returns paginated packing lists with transfer details, selected transfer product details, and daily expense details.
  *     tags: [Packing Lists]
  *     security:
  *       - bearerAuth: []
@@ -175,19 +196,23 @@ router.post("/", packingListController.createPackingList);
  *         name: page
  *         schema:
  *           type: integer
+ *           minimum: 1
  *           default: 1
  *         description: Page number
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
+ *           minimum: 1
  *           default: 10
  *         description: Number of packing lists per page
  *     responses:
  *       200:
- *         description: Packing lists fetched successfully, including vendor details in styles
+ *         description: Packing lists fetched successfully
  *       401:
  *         description: Unauthorized
+ *       500:
+ *         description: Failed to fetch packing lists
  */
 router.get("/", packingListController.getAllPackingLists);
 
@@ -196,6 +221,7 @@ router.get("/", packingListController.getAllPackingLists);
  * /api/packing-lists/{id}:
  *   get:
  *     summary: Get a packing list by ID
+ *     description: Returns the packing list with transfer product details and daily expense details.
  *     tags: [Packing Lists]
  *     security:
  *       - bearerAuth: []
@@ -209,12 +235,18 @@ router.get("/", packingListController.getAllPackingLists);
  *     responses:
  *       200:
  *         description: Packing list fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PackingListResponse'
  *       400:
  *         description: Invalid packing list ID
  *       401:
  *         description: Unauthorized
  *       404:
  *         description: Packing list not found
+ *       500:
+ *         description: Internal server error
  */
 router.get("/:id", packingListController.getPackingListById);
 
@@ -223,7 +255,7 @@ router.get("/:id", packingListController.getPackingListById);
  * /api/packing-lists/{id}:
  *   put:
  *     summary: Update a packing list
- *     description: Packing ID cannot be changed through this endpoint.
+ *     description: Packing ID cannot be changed through this endpoint. Total quantity and total expense are calculated by the server.
  *     tags: [Packing Lists]
  *     security:
  *       - bearerAuth: []
@@ -244,11 +276,13 @@ router.get("/:id", packingListController.getPackingListById);
  *       200:
  *         description: Packing list updated successfully
  *       400:
- *         description: Invalid packing list ID
+ *         description: Invalid packing list ID or packing list data
  *       401:
  *         description: Unauthorized
  *       404:
  *         description: Packing list not found
+ *       500:
+ *         description: Internal server error
  */
 router.put("/:id", packingListController.editPackingList);
 
@@ -276,6 +310,8 @@ router.put("/:id", packingListController.editPackingList);
  *         description: Unauthorized
  *       404:
  *         description: Packing list not found
+ *       500:
+ *         description: Internal server error
  */
 router.delete("/:id", packingListController.deletePackingList);
 

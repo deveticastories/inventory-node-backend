@@ -140,6 +140,45 @@ export const message = {
     TRANSFER_QUANTITY_INVALID: "Transfer quantity must be a positive integer",
     DUPLICATE_TRANSFER_PRODUCT: "Duplicate products are not allowed in the same transfer",
     INSUFFICIENT_STORE_STOCK: "Insufficient available stock in the source store",
+    STORE_ID_REQUIRED: "Store ID is required",
+    STORE_TYPE_REQUIRED: "Store type is required",
+    STORE_TYPE_INVALID: "Invalid store type",
+    ONLY_ONE_STORE_FILTER_ALLOWED:
+        "Only one store filter is allowed at a time",
 
+    STOCK_TRANSFER_NOT_FOUND: "Stock transfer not found",
+    STOCK_TRANSFER_ID_REQUIRED: "Stock transfer ID is required",
+    STOCK_TRANSFER_ID_INVALID: "Invalid stock transfer ID",
+
+    FROM_STORE_REQUIRED: "From store is required",
+    TO_STORE_REQUIRED: "To store is required",
+    FROM_AND_TO_STORE_MUST_BE_DIFFERENT:
+        "From store and to store must be different",
+
+    PRODUCTS_REQUIRED: "Products are required",
+    PRODUCT_ID_REQUIRED: "Product ID is required",
+    PRODUCT_ID_INVALID: "Invalid product ID",
+    PRODUCT_NOT_FOUND: "Product not found",
+    DUPLICATE_PRODUCTS_NOT_ALLOWED:
+        "Duplicate products are not allowed",
+
+    TRANSFERRED_QTY_REQUIRED: "Transferred quantity is required",
+    TRANSFERRED_QTY_INVALID:
+        "Transferred quantity must be a positive integer",
+
+    AVAILABLE_QTY_REQUIRED: "Available quantity is required",
+    AVAILABLE_QTY_INVALID: "Invalid available quantity",
+
+    RATE_REQUIRED: "Rate is required",
+    RATE_INVALID: "Rate must be a valid non-negative number",
+
+    SEARCH_INVALID: "Invalid search value",
+    PAGE_INVALID: "Page must be a positive integer",
+    LIMIT_INVALID: "Limit must be a positive integer",
+
+
+    STOCK_TRANSFER_PRODUCTS_FETCHED:
+        "Indian store stock transfer products fetched successfully",
+        USE_ONLY_ONE_STORE_FILTER:"Use only store field"
 
 };

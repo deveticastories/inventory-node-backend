@@ -5,6 +5,7 @@ import * as packingListService from "./packingListService";
 import { getPaginationParams } from "../../utils/pagination";
 import { statusCode } from "../../constants/statusCode";
 import { message } from "../../constants/responseMessage";
+import logger from "../../utils/logger";
 
 const getPackingListId = (
     req: RequestWithAuthData,
@@ -13,6 +14,8 @@ const getPackingListId = (
     const id = req.params.id;
 
     if (typeof id !== "string" || !mongoose.isValidObjectId(id)) {
+        logger.warn("Invalid packing list ID");
+
         res.status(statusCode.BAD_REQUEST).json({
             success: false,
             message: message.PACKING_LIST_ID_INVALID,
@@ -58,6 +61,8 @@ export const createPackingList = async (
 ): Promise<Response> => {
     try {
         if (!req.userId || !mongoose.isValidObjectId(req.userId)) {
+            logger.warn("Invalid authenticated user ID while creating packing list");
+
             return res.status(statusCode.UNAUTHORIZED).json({
                 success: false,
                 message: message.AUTHENTICATED_USER_ID_INVALID,
@@ -69,12 +74,16 @@ export const createPackingList = async (
             new mongoose.Types.ObjectId(req.userId),
         );
 
+        logger.info("Packing list created successfully");
+
         return res.status(statusCode.CREATED).json({
             success: true,
             message: message.PACKING_LIST_CREATED,
             data: packingList,
         });
     } catch (error) {
+        logger.error("Failed to create packing list", error);
+
         const result = getErrorResponse(error);
 
         return res.status(result.status).json({
@@ -92,13 +101,17 @@ export const getAllPackingLists = async (
         const { page, limit } = getPaginationParams(req.query);
         const result = await packingListService.getAllPackingLists(page, limit);
 
+        logger.info("Packing lists fetched successfully");
+
         return res.status(statusCode.OK).json({
             success: true,
             message: message.PACKING_LISTS_FETCHED,
             data: result.data,
             pagination: result.pagination,
         });
-    } catch {
+    } catch (error) {
+        logger.error("Failed to fetch packing lists", error);
+
         return res.status(statusCode.INTERNAL_SERVER_ERROR).json({
             success: false,
             message: message.PACKING_LISTS_FETCH_FAILED,
@@ -118,11 +131,15 @@ export const getPackingListById = async (
         const packingList = await packingListService.getPackingListById(id);
 
         if (!packingList) {
+            logger.warn(`Packing list not found: ${id}`);
+
             return res.status(statusCode.NOT_FOUND).json({
                 success: false,
                 message: message.PACKING_LIST_NOT_FOUND,
             });
         }
+
+        logger.info(`Packing list fetched successfully: ${id}`);
 
         return res.status(statusCode.OK).json({
             success: true,
@@ -130,6 +147,8 @@ export const getPackingListById = async (
             data: packingList,
         });
     } catch (error) {
+        logger.error(`Failed to fetch packing list: ${id}`, error);
+
         const result = getErrorResponse(error);
 
         return res.status(result.status).json({
@@ -149,6 +168,8 @@ export const editPackingList = async (
 
     try {
         if (!req.userId || !mongoose.isValidObjectId(req.userId)) {
+            logger.warn("Invalid authenticated user ID while updating packing list");
+
             return res.status(statusCode.UNAUTHORIZED).json({
                 success: false,
                 message: message.AUTHENTICATED_USER_ID_INVALID,
@@ -162,11 +183,15 @@ export const editPackingList = async (
         );
 
         if (!packingList) {
+            logger.warn(`Packing list not found for update: ${id}`);
+
             return res.status(statusCode.NOT_FOUND).json({
                 success: false,
                 message: message.PACKING_LIST_NOT_FOUND,
             });
         }
+
+        logger.info(`Packing list updated successfully: ${id}`);
 
         return res.status(statusCode.OK).json({
             success: true,
@@ -174,6 +199,8 @@ export const editPackingList = async (
             data: packingList,
         });
     } catch (error) {
+        logger.error(`Failed to update packing list: ${id}`, error);
+
         const result = getErrorResponse(error);
 
         return res.status(result.status).json({
@@ -193,6 +220,8 @@ export const deletePackingList = async (
 
     try {
         if (!req.userId || !mongoose.isValidObjectId(req.userId)) {
+            logger.warn("Invalid authenticated user ID while deleting packing list");
+
             return res.status(statusCode.UNAUTHORIZED).json({
                 success: false,
                 message: message.AUTHENTICATED_USER_ID_INVALID,
@@ -205,11 +234,15 @@ export const deletePackingList = async (
         );
 
         if (!packingList) {
+            logger.warn(`Packing list not found for deletion: ${id}`);
+
             return res.status(statusCode.NOT_FOUND).json({
                 success: false,
                 message: message.PACKING_LIST_NOT_FOUND,
             });
         }
+
+        logger.info(`Packing list deleted successfully: ${id}`);
 
         return res.status(statusCode.OK).json({
             success: true,
@@ -217,6 +250,8 @@ export const deletePackingList = async (
             data: packingList,
         });
     } catch (error) {
+        logger.error(`Failed to delete packing list: ${id}`, error);
+
         const result = getErrorResponse(error);
 
         return res.status(result.status).json({
