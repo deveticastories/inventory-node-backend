@@ -1,38 +1,34 @@
+
 import mongoose from "mongoose";
-import PackingList from "../../models/packingListModel";
+import PackingListModel, {
+    type PackingListStatus,
+} from "../../models/packingListModel";
 import { getPaginationMeta } from "../../utils/pagination";
 
-const packingListAggregation = [
+const packingListLookups = [
     {
         $lookup: {
             from: "indianstorestocktransfers",
             localField: "styles.indianStoreStockTransfer",
             foreignField: "_id",
-            as: "stockTransfers",
+            as: "transferDetails",
         },
     },
     {
-        $lookup: {
-            from: "dailyexpenses",
-            localField: "dailyExpenses",
-            foreignField: "_id",
-            as: "expenseDetails",
-        },
-    },
-    {
-        $addFields: {
+        $set: {
             styles: {
                 $map: {
-                    input: { $ifNull: ["$styles", []] },
+                    input: "$styles",
                     as: "style",
                     in: {
-                        $let: {
-                            vars: {
-                                stockTransfer: {
+                        $mergeObjects: [
+                            "$$style",
+                            {
+                                indianStoreStockTransfer: {
                                     $arrayElemAt: [
                                         {
                                             $filter: {
-                                                input: "$stockTransfers",
+                                                input: "$transferDetails",
                                                 as: "transfer",
                                                 cond: {
                                                     $eq: [
@@ -46,81 +42,6 @@ const packingListAggregation = [
                                     ],
                                 },
                             },
-                            in: {
-                                $let: {
-                                    vars: {
-                                        selectedProduct: {
-                                            $arrayElemAt: [
-                                                {
-                                                    $filter: {
-                                                        input: {
-                                                            $ifNull: [
-                                                                "$$stockTransfer.products",
-                                                                [],
-                                                            ],
-                                                        },
-                                                        as: "product",
-                                                        cond: {
-                                                            $eq: [
-                                                                "$$product._id",
-                                                                "$$style.indianStoreStockTransferProduct",
-                                                            ],
-                                                        },
-                                                    },
-                                                },
-                                                0,
-                                            ],
-                                        },
-                                    },
-                                    in: {
-                                        $mergeObjects: [
-                                            "$$style",
-                                            {
-                                                productDetails: {
-                                                    $ifNull: [
-                                                        "$$selectedProduct",
-                                                        null,
-                                                    ],
-                                                },
-                                                indianStoreStockTransfer: {
-                                                    $ifNull: [
-                                                        "$$stockTransfer",
-                                                        "$$style.indianStoreStockTransfer",
-                                                    ],
-                                                },
-                                            },
-                                        ],
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-            },
-            dailyExpenses: {
-                $map: {
-                    input: { $ifNull: ["$dailyExpenses", []] },
-                    as: "expenseId",
-                    in: {
-                        $ifNull: [
-                            {
-                                $arrayElemAt: [
-                                    {
-                                        $filter: {
-                                            input: "$expenseDetails",
-                                            as: "expense",
-                                            cond: {
-                                                $eq: [
-                                                    "$$expense._id",
-                                                    "$$expenseId",
-                                                ],
-                                            },
-                                        },
-                                    },
-                                    0,
-                                ],
-                            },
-                            "$$expenseId",
                         ],
                     },
                 },
@@ -128,80 +49,108 @@ const packingListAggregation = [
         },
     },
     {
-        $addFields: {
-            totalQty: {
-                $sum: {
-                    $map: {
-                        input: { $ifNull: ["$styles", []] },
-                        as: "style",
-                        in: {
-                            $ifNull: ["$$style.qty", 0],
-                        },
-                    },
-                },
+        $lookup: {
+            from: "dailyexpenses",
+            localField: "dailyExpenses",
+            foreignField: "_id",
+            as: "dailyExpenses",
+        },
+    },
+    {
+        $lookup: {
+            from: "users",
+            localField: "createdBy",
+            foreignField: "_id",
+            as: "createdByDetails",
+        },
+    },
+    {
+        $lookup: {
+            from: "users",
+            localField: "updatedBy",
+            foreignField: "_id",
+            as: "updatedByDetails",
+        },
+    },
+    {
+        $lookup: {
+            from: "users",
+            localField: "deletedBy",
+            foreignField: "_id",
+            as: "deletedByDetails",
+        },
+    },
+    {
+        $set: {
+            createdBy: {
+                $ifNull: [
+                    { $arrayElemAt: ["$createdByDetails", 0] },
+                    "$createdBy",
+                ],
             },
-            totalExpense: {
-                $sum: {
-                    $map: {
-                        input: { $ifNull: ["$expenseDetails", []] },
-                        as: "expense",
-                        in: {
-                            $ifNull: ["$$expense.amount", 0],
-                        },
-                    },
-                },
+            updatedBy: {
+                $ifNull: [
+                    { $arrayElemAt: ["$updatedByDetails", 0] },
+                    "$updatedBy",
+                ],
+            },
+            deletedBy: {
+                $ifNull: [
+                    { $arrayElemAt: ["$deletedByDetails", 0] },
+                    "$deletedBy",
+                ],
             },
         },
     },
     {
-        $project: {
-            stockTransfers: 0,
-            expenseDetails: 0,
-        },
+        $unset: [
+            "transferDetails",
+            "createdByDetails",
+            "updatedByDetails",
+            "deletedByDetails",
+        ],
     },
 ];
 
 export const create = async (
-    packingListData: Record<string, unknown>
+    packingListData: Record<string, unknown>,
 ) => {
-    const packingList = new PackingList(packingListData);
+    const packingList = new PackingListModel(packingListData);
     return packingList.save();
 };
 
-export const findById = async (id: string) => {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        return null;
-    }
-
-    const result = await PackingList.aggregate([
-        {
-            $match: {
-                _id: new mongoose.Types.ObjectId(id),
-                isDeleted: false,
-            },
-        },
-        ...packingListAggregation,
-    ]).exec();
-
-    return result[0] ?? null;
-};
 
 export const getAllPackingLists = async (
     page: number,
-    limit: number
+    limit: number,
+    status?: PackingListStatus,
 ) => {
-    const filter = { isDeleted: false };
+    const filter: Record<string, unknown> = {
+        isDeleted: false,
+    };
+
+    if (status) {
+        filter.packingListStatus = status;
+    }
+
     const skip = (page - 1) * limit;
 
     const [packingLists, totalRecords] = await Promise.all([
-        PackingList.aggregate([
+        PackingListModel.aggregate([
             { $match: filter },
-            { $sort: { createdAt: -1 } },
+            { $sort: { packingDate: -1, createdAt: -1 } },
             { $skip: skip },
             { $limit: limit },
-            ...packingListAggregation,
+            ...packingListLookups,
+            {
+                $set: {
+                    totalExpense: {
+                        $sum: "$dailyExpenses.amount",
+                    },
+                },
+            },
         ]).exec(),
-        PackingList.countDocuments(filter).exec(),
+        PackingListModel.countDocuments(filter).exec(),
     ]);
 
     return {
@@ -210,42 +159,50 @@ export const getAllPackingLists = async (
     };
 };
 
-export const updateById = async (
-    id: string,
-    updateData: Record<string, unknown>
-) => {
+export const findById = async (id: string) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
         return null;
     }
 
-    return PackingList.findOneAndUpdate(
+    const packingLists = await PackingListModel.aggregate([
         {
-            _id: new mongoose.Types.ObjectId(id),
-            isDeleted: false,
+            $match: {
+                _id: new mongoose.Types.ObjectId(id),
+                isDeleted: false,
+            },
         },
+        ...packingListLookups,
         {
-            $set: updateData,
+            $set: {
+                totalExpense: {
+                    $sum: "$dailyExpenses.amount",
+                },
+            },
         },
-        {
-            new: true,
-            runValidators: true,
-        }
+    ]).exec();
+
+    return packingLists[0] ?? null;
+};
+
+
+
+export const updateById = async (
+    id: string,
+    updateData: Record<string, unknown>,
+) => {
+    return PackingListModel.findOneAndUpdate(
+        { _id: id, isDeleted: false },
+        { $set: updateData },
+        { new: true, runValidators: true },
     ).exec();
 };
 
 export const deletePackingList = async (
     id: string,
-    deletedBy: mongoose.Types.ObjectId
+    deletedBy: mongoose.Types.ObjectId,
 ) => {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        return null;
-    }
-
-    return PackingList.findOneAndUpdate(
-        {
-            _id: new mongoose.Types.ObjectId(id),
-            isDeleted: false,
-        },
+    return PackingListModel.findOneAndUpdate(
+        { _id: id, isDeleted: false },
         {
             $set: {
                 isDeleted: true,
@@ -253,30 +210,33 @@ export const deletePackingList = async (
                 deletedBy,
             },
         },
-        {
-            new: true,
-        }
+        { new: true },
     ).exec();
 };
 
+const PACKING_ID_PREFIX = "PK-";
+const PACKING_ID_PADDING = 4;
+
 export const generatePackingId = async (): Promise<string> => {
-    const lastPackingList = await PackingList.findOne({
-        packingId: { $exists: true, $ne: null },
+    const lastPackingList = await PackingListModel.findOne({
+        packingId: { $regex: /^PK-\d+$/ },
     })
-        .sort({ createdAt: -1 })
+        .sort({ packingId: -1 })
+        .collation({ locale: "en", numericOrdering: true })
         .select("packingId")
         .lean()
         .exec();
 
-    let nextNumber = 1;
+    const lastNumber = lastPackingList?.packingId
+        ? parseInt(
+            lastPackingList.packingId.slice(
+                PACKING_ID_PREFIX.length,
+            ),
+            10,
+        )
+        : 0;
 
-    if (lastPackingList?.packingId) {
-        const match = lastPackingList.packingId.match(/^PACK(\d+)$/);
-
-        if (match) {
-            nextNumber = Number(match[1]) + 1;
-        }
-    }
-
-    return `PACK${String(nextNumber).padStart(3, "0")}`;
+    return `${PACKING_ID_PREFIX}${String(
+        lastNumber + 1,
+    ).padStart(PACKING_ID_PADDING, "0")}`;
 };

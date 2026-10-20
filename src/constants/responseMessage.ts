@@ -179,6 +179,19 @@ export const message = {
 
     STOCK_TRANSFER_PRODUCTS_FETCHED:
         "Indian store stock transfer products fetched successfully",
-        USE_ONLY_ONE_STORE_FILTER:"Use only store field"
+    USE_ONLY_ONE_STORE_FILTER: "Use only store field",
+    PACKING_LIST_STATUS_INVALID: "Packing list status invalid",
+    PACKING_LIST_CREATED: "Packing list created successfully",
+    PACKING_LIST_CREATE_FAILED: "Failed to create packing list. A duplicate entry already exists.",
+    PACKING_LISTS_FETCHED: "Packing lists fetched successfully",
+    PACKING_LISTS_FETCH_FAILED: "Failed to fetch packing lists",
+    PACKING_LIST_FETCHED: "Packing list fetched successfully",
+    PACKING_LIST_UPDATED: "Packing list updated successfully",
+    PACKING_LIST_DELETED: "Packing list deleted successfully",
+    PACKING_LIST_NOT_FOUND: "Packing list not found",
+    PACKING_LIST_ID_INVALID: "Invalid packing list ID",
+    PACKING_LIST_STATUS_INVALID: "Invalid packing list status",
+    PACKING_LIST_VALIDATION_FAILED: "Invalid packing list data",
+    PACKING_ID_GENERATION_FAILED: "Failed to generate a packing ID. Please try again.",
 
 };

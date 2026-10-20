@@ -1,11 +1,22 @@
 import type { Response } from "express";
 import mongoose from "mongoose";
 import type { RequestWithAuthData } from "../../@types/express";
+import type { PackingListStatus } from "../../models/packingListModel";
 import * as packingListService from "./packingListService";
 import { getPaginationParams } from "../../utils/pagination";
 import { statusCode } from "../../constants/statusCode";
 import { message } from "../../constants/responseMessage";
 import logger from "../../utils/logger";
+
+const PACKING_LIST_STATUSES: readonly PackingListStatus[] = [
+    "Pending",
+    "In Transit queue",
+    "Completed",
+];
+
+const isPackingListStatus = (value: unknown): value is PackingListStatus =>
+    typeof value === "string" &&
+    (PACKING_LIST_STATUSES as readonly string[]).includes(value);
 
 const getPackingListId = (
     req: RequestWithAuthData,
@@ -27,12 +38,48 @@ const getPackingListId = (
     return id;
 };
 
+const getAuthenticatedUserId = (
+    req: RequestWithAuthData,
+    res: Response,
+    action: string,
+): mongoose.Types.ObjectId | null => {
+    if (!req.userId || !mongoose.isValidObjectId(req.userId)) {
+        logger.warn(`Invalid authenticated user ID while ${action} packing list`);
+
+        res.status(statusCode.UNAUTHORIZED).json({
+            success: false,
+            message: message.AUTHENTICATED_USER_ID_INVALID,
+        });
+
+        return null;
+    }
+
+    return new mongoose.Types.ObjectId(req.userId);
+};
+
 const getErrorResponse = (error: unknown) => {
     if (error instanceof Error) {
         if (error.message === "PACKING_LIST_ID_INVALID") {
             return {
                 status: statusCode.BAD_REQUEST,
                 message: message.PACKING_LIST_ID_INVALID,
+            };
+        }
+
+        if (error.message === "PACKING_ID_GENERATION_FAILED") {
+            return {
+                status: statusCode.CONFLICT,
+                message: message.PACKING_ID_GENERATION_FAILED,
+            };
+        }
+
+        if (
+            error instanceof mongoose.Error.ValidationError ||
+            error instanceof mongoose.Error.CastError
+        ) {
+            return {
+                status: statusCode.BAD_REQUEST,
+                message: message.PACKING_LIST_VALIDATION_FAILED,
             };
         }
     }
@@ -60,21 +107,18 @@ export const createPackingList = async (
     res: Response,
 ): Promise<Response> => {
     try {
-        if (!req.userId || !mongoose.isValidObjectId(req.userId)) {
-            logger.warn("Invalid authenticated user ID while creating packing list");
+        const userId = getAuthenticatedUserId(req, res, "creating");
 
-            return res.status(statusCode.UNAUTHORIZED).json({
-                success: false,
-                message: message.AUTHENTICATED_USER_ID_INVALID,
-            });
-        }
+        if (!userId) return res;
 
         const packingList = await packingListService.createPackingList(
             req.body,
-            new mongoose.Types.ObjectId(req.userId),
+            userId,
         );
 
-        logger.info("Packing list created successfully");
+        logger.info(
+            `Packing list created successfully: ${packingList.packingId}`,
+        );
 
         return res.status(statusCode.CREATED).json({
             success: true,
@@ -99,7 +143,22 @@ export const getAllPackingLists = async (
 ): Promise<Response> => {
     try {
         const { page, limit } = getPaginationParams(req.query);
-        const result = await packingListService.getAllPackingLists(page, limit);
+        const { status } = req.query;
+
+        if (status !== undefined && !isPackingListStatus(status)) {
+            logger.warn(`Invalid packing list status filter: ${String(status)}`);
+
+            return res.status(statusCode.BAD_REQUEST).json({
+                success: false,
+                message: message.PACKING_LIST_STATUS_INVALID,
+            });
+        }
+
+        const result = await packingListService.getAllPackingLists(
+            page,
+            limit,
+            status,
+        );
 
         logger.info("Packing lists fetched successfully");
 
@@ -139,7 +198,9 @@ export const getPackingListById = async (
             });
         }
 
-        logger.info(`Packing list fetched successfully: ${id}`);
+        logger.info(
+            `Packing list fetched successfully: ${packingList.packingId ?? id}`,
+        );
 
         return res.status(statusCode.OK).json({
             success: true,
@@ -167,19 +228,14 @@ export const editPackingList = async (
     if (!id) return res;
 
     try {
-        if (!req.userId || !mongoose.isValidObjectId(req.userId)) {
-            logger.warn("Invalid authenticated user ID while updating packing list");
+        const userId = getAuthenticatedUserId(req, res, "updating");
 
-            return res.status(statusCode.UNAUTHORIZED).json({
-                success: false,
-                message: message.AUTHENTICATED_USER_ID_INVALID,
-            });
-        }
+        if (!userId) return res;
 
         const packingList = await packingListService.editPackingList(
             id,
             req.body,
-            new mongoose.Types.ObjectId(req.userId),
+            userId,
         );
 
         if (!packingList) {
@@ -191,7 +247,9 @@ export const editPackingList = async (
             });
         }
 
-        logger.info(`Packing list updated successfully: ${id}`);
+        logger.info(
+            `Packing list updated successfully: ${packingList.packingId ?? id}`,
+        );
 
         return res.status(statusCode.OK).json({
             success: true,
@@ -219,18 +277,13 @@ export const deletePackingList = async (
     if (!id) return res;
 
     try {
-        if (!req.userId || !mongoose.isValidObjectId(req.userId)) {
-            logger.warn("Invalid authenticated user ID while deleting packing list");
+        const userId = getAuthenticatedUserId(req, res, "deleting");
 
-            return res.status(statusCode.UNAUTHORIZED).json({
-                success: false,
-                message: message.AUTHENTICATED_USER_ID_INVALID,
-            });
-        }
+        if (!userId) return res;
 
         const packingList = await packingListService.deletePackingList(
             id,
-            new mongoose.Types.ObjectId(req.userId),
+            userId,
         );
 
         if (!packingList) {
@@ -242,7 +295,9 @@ export const deletePackingList = async (
             });
         }
 
-        logger.info(`Packing list deleted successfully: ${id}`);
+        logger.info(
+            `Packing list deleted successfully: ${packingList.packingId ?? id}`,
+        );
 
         return res.status(statusCode.OK).json({
             success: true,
