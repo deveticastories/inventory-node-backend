@@ -4,6 +4,7 @@ import PackingListModel, {
     type PackingListStatus,
 } from "../../models/packingListModel";
 import { getPaginationMeta } from "../../utils/pagination";
+
 interface TransitUpdate {
     styleId: string;
     transit: {
@@ -12,6 +13,7 @@ interface TransitUpdate {
         updatedUnitRateAED: number;
     };
 }
+
 const packingListLookups = [
     {
         $lookup: {
@@ -103,6 +105,142 @@ const packingListLookups = [
     },
     {
         $lookup: {
+            from: "purchasequalitychecks",
+            let: {
+                qualityCheckProductIds: {
+                    $map: {
+                        input: {
+                            $filter: {
+                                input: "$styles",
+                                as: "style",
+                                cond: {
+                                    $ne: [
+                                        "$$style.indianStoreStockTransferProduct.qualityCheckProduct",
+                                        null,
+                                    ],
+                                },
+                            },
+                        },
+                        as: "style",
+                        in: "$$style.indianStoreStockTransferProduct.qualityCheckProduct",
+                    },
+                },
+            },
+            pipeline: [
+                {
+                    $match: {
+                        $expr: {
+                            $gt: [
+                                {
+                                    $size: {
+                                        $setIntersection: [
+                                            {
+                                                $ifNull: [
+                                                    "$products._id",
+                                                    [],
+                                                ],
+                                            },
+                                            "$$qualityCheckProductIds",
+                                        ],
+                                    },
+                                },
+                                0,
+                            ],
+                        },
+                    },
+                },
+                {
+                    $lookup: {
+                        from: "purchaseentries",
+                        localField: "purchaseEntry",
+                        foreignField: "_id",
+                        as: "purchaseEntryDetails",
+                    },
+                },
+                {
+                    $unwind: {
+                        path: "$purchaseEntryDetails",
+                        preserveNullAndEmptyArrays: true,
+                    },
+                },
+                {
+                    $unwind: "$products",
+                },
+                {
+                    $match: {
+                        $expr: {
+                            $in: [
+                                "$products._id",
+                                "$$qualityCheckProductIds",
+                            ],
+                        },
+                    },
+                },
+                {
+                    $project: {
+                        _id: "$products._id",
+                        invoiceNo: "$purchaseEntryDetails.invoiceNo",
+                    },
+                },
+            ],
+            as: "qualityCheckDetails",
+        },
+    },
+    {
+        $set: {
+            styles: {
+                $map: {
+                    input: "$styles",
+                    as: "style",
+                    in: {
+                        $let: {
+                            vars: {
+                                qualityCheck: {
+                                    $arrayElemAt: [
+                                        {
+                                            $filter: {
+                                                input: "$qualityCheckDetails",
+                                                as: "qc",
+                                                cond: {
+                                                    $eq: [
+                                                        "$$qc._id",
+                                                        "$$style.indianStoreStockTransferProduct.qualityCheckProduct",
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                        0,
+                                    ],
+                                },
+                            },
+                            in: {
+                                $mergeObjects: [
+                                    "$$style",
+                                    {
+                                        indianStoreStockTransferProduct: {
+                                            $mergeObjects: [
+                                                "$$style.indianStoreStockTransferProduct",
+                                                {
+                                                    invoiceNo: {
+                                                        $ifNull: [
+                                                            "$$qualityCheck.invoiceNo",
+                                                            null,
+                                                        ],
+                                                    },
+                                                },
+                                            ],
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    },
+    {
+        $lookup: {
             from: "dailyexpenses",
             localField: "dailyExpenses",
             foreignField: "_id",
@@ -164,6 +302,7 @@ const packingListLookups = [
             "createdByDetails",
             "updatedByDetails",
             "deletedByDetails",
+            "qualityCheckDetails",
         ],
     },
 ];
@@ -279,6 +418,7 @@ export const generatePackingId = async (): Promise<string> => {
         lastNumber + 1,
     ).padStart(PACKING_ID_PADDING, "0")}`;
 };
+
 export const updateStylesTransit = async (
     updates: TransitUpdate[],
     updatedBy: mongoose.Types.ObjectId,
@@ -308,6 +448,7 @@ export const updateStylesTransit = async (
 
     return PackingListModel.bulkWrite(operations);
 };
+
 export const findStylesByIds = async (styleIds: string[]) => {
     const objectIds = styleIds.map(
         (id) => new mongoose.Types.ObjectId(id),

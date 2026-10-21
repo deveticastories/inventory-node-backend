@@ -215,5 +215,28 @@ export const message = {
 
     PACKING_LISTS_NOT_FOUND:
         "One or more packing lists were not found",
+    UAE_RETURN_CREATED: "UAE return record created successfully",
+    UAE_RETURNS_FETCHED: "UAE return records fetched successfully",
+    UAE_RETURN_FETCHED: "UAE return record fetched successfully",
+    UAE_RETURN_UPDATED: "UAE return record updated successfully",
+    UAE_RETURN_DELETED: "UAE return record deleted successfully",
+    RETURN_PRODUCTS_REQUIRED: "At least one return product is required",
+    RETURN_PRODUCT_INVALID: "Invalid return product details",
+    RETURN_PRODUCT_PACKING_LIST_MISMATCH: "Product packing list ID must match the parent packing list ID",
+    RETURN_DATE_INVALID: "Invalid return date",
+    RETURNED_QTY_INVALID: "Returned quantity must be a positive integer and cannot exceed the packing style quantity",
+    PAGINATION_INVALID: "Invalid pagination values",
+    UAE_RETURN_ID_INVALID: "Invalid UAE return ID",
+    UAE_RETURN_NOT_FOUND: "UAE return record not found",
+    RETURN_REASON_INVALID: "Return reason invalid",
+    RETURN_TYPE_INVALID: "Return type invalid",
+    FROM_STORE_ID_INVALID: "Invalid from store ID",
+    TO_STORE_ID_INVALID: "Invalid to store ID",
+    FROM_STORE_TO_STORE_SAME: "From store and to store cannot be the same",
+    FROM_STORE_NOT_FOUND: "From store not found",
+    TO_STORE_NOT_FOUND: "To store not found",
+    INVOICE_VALUE_INVALID: "Invoice value must be a valid non-negative number",
+    UPDATED_INVOICE_VALUE_INVALID: "Updated invoice value must be a valid non-negative number",
+    IN_STORE_INVALID: "In store must be a boolean value",
 
 };
