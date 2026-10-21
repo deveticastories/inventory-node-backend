@@ -315,3 +315,146 @@ export const deletePackingList = async (
         });
     }
 };
+export const convertPackingStylesToAED = async (
+    req: RequestWithAuthData,
+    res: Response,
+): Promise<Response> => {
+    try {
+        const userId = getAuthenticatedUserId(
+            req,
+            res,
+            "converting packing styles to AED",
+        );
+
+        if (!userId) return res;
+
+        const result = await packingListService.convertPackingStylesToAED(
+            req.body.styles,
+            userId,
+        );
+
+        logger.info("Packing styles converted to AED successfully");
+
+        return res.status(statusCode.OK).json({
+            success: true,
+            message: message.PACKING_STYLES_AED_CONVERTED,
+            data: result,
+        });
+    } catch (error) {
+        logger.error("Failed to convert packing styles to AED", error);
+
+        if (error instanceof Error) {
+            const errorResponses: Record<
+                string,
+                { status: number; message: string }
+            > = {
+                PACKING_STYLE_TRANSIT_REQUIRED: {
+                    status: statusCode.BAD_REQUEST,
+                    message: message.PACKING_STYLE_TRANSIT_REQUIRED,
+                },
+                PACKING_STYLE_ID_INVALID: {
+                    status: statusCode.BAD_REQUEST,
+                    message: message.PACKING_STYLE_ID_INVALID,
+                },
+                DUPLICATE_PACKING_STYLE_ID: {
+                    status: statusCode.BAD_REQUEST,
+                    message: message.DUPLICATE_PACKING_STYLE_ID,
+                },
+                PACKING_STYLE_TRANSIT_INVALID: {
+                    status: statusCode.BAD_REQUEST,
+                    message: message.PACKING_STYLE_TRANSIT_INVALID,
+                },
+                PACKING_STYLE_NOT_FOUND: {
+                    status: statusCode.NOT_FOUND,
+                    message: message.PACKING_STYLE_NOT_FOUND,
+                },
+            };
+
+            const result = errorResponses[error.message];
+
+            if (result) {
+                return res.status(result.status).json({
+                    success: false,
+                    message: result.message,
+                });
+            }
+        }
+
+        return res.status(statusCode.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: message.INTERNAL_SERVER_ERROR,
+        });
+    }
+};
+export const updatePackingListsStatus = async (
+    req: RequestWithAuthData,
+    res: Response,
+): Promise<Response> => {
+    try {
+        const userId = getAuthenticatedUserId(
+            req,
+            res,
+            "updating packing list statuses",
+        );
+
+        if (!userId) return res;
+
+        const { packingListIds, packingListStatus } = req.body;
+
+        const result = await packingListService.updatePackingListsStatus(
+            packingListIds,
+            packingListStatus,
+            userId,
+        );
+
+        return res.status(statusCode.OK).json({
+            success: true,
+            message: message.PACKING_LIST_STATUS_UPDATED,
+            data: result,
+        });
+    } catch (error) {
+        logger.error("Failed to update packing list statuses", error);
+
+        if (error instanceof Error) {
+            const errorResponses: Record<
+                string,
+                { status: number; message: string }
+            > = {
+                PACKING_LIST_IDS_REQUIRED: {
+                    status: statusCode.BAD_REQUEST,
+                    message: message.PACKING_LIST_IDS_REQUIRED,
+                },
+                PACKING_LIST_ID_INVALID: {
+                    status: statusCode.BAD_REQUEST,
+                    message: message.PACKING_LIST_ID_INVALID,
+                },
+                DUPLICATE_PACKING_LIST_IDS: {
+                    status: statusCode.BAD_REQUEST,
+                    message: message.DUPLICATE_PACKING_LIST_IDS,
+                },
+                PACKING_LIST_STATUS_INVALID: {
+                    status: statusCode.BAD_REQUEST,
+                    message: message.PACKING_LIST_STATUS_INVALID,
+                },
+                PACKING_LISTS_NOT_FOUND: {
+                    status: statusCode.NOT_FOUND,
+                    message: message.PACKING_LISTS_NOT_FOUND,
+                },
+            };
+
+            const errorResponse = errorResponses[error.message];
+
+            if (errorResponse) {
+                return res.status(errorResponse.status).json({
+                    success: false,
+                    message: errorResponse.message,
+                });
+            }
+        }
+
+        return res.status(statusCode.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: message.INTERNAL_SERVER_ERROR,
+        });
+    }
+};

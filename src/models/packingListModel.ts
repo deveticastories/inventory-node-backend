@@ -5,8 +5,15 @@ export interface PackingStyle {
     styleNo: string;
     indianStoreStockTransfer: mongoose.Types.ObjectId;
     indianStoreStockTransferProduct: mongoose.Types.ObjectId;
+    transit: {
+        perPcAED: number;
+        expenseRecAED: number;
+        updatedUnitRateAED: number;
+    };
     qty: number;
 }
+
+export type PackingStyleDocument = PackingStyle & Document;
 
 export type PackingListStatus =
     | "Pending"
@@ -19,7 +26,7 @@ export interface PackingList extends BaseDocument {
     salary: number;
     totalQty: number;
     totalExpense: number;
-    styles: PackingStyle[];
+    styles: mongoose.Types.DocumentArray<PackingStyleDocument>;
     dailyExpenses: mongoose.Types.ObjectId[];
     packingListStatus: PackingListStatus;
 }
@@ -42,13 +49,36 @@ const PackingStyleSchema: Schema<PackingStyle> = new Schema(
             type: Schema.Types.ObjectId,
             required: true,
         },
+        transit: {
+            type: new Schema(
+                {
+                    perPcAED: {
+                        type: Number,
+                        default: 0,
+                        min: 0,
+                    },
+                    expenseRecAED: {
+                        type: Number,
+                        default: 0,
+                        min: 0,
+                    },
+                    updatedUnitRateAED: {
+                        type: Number,
+                        default: 0,
+                        min: 0,
+                    },
+                },
+                { _id: false },
+            ),
+            default: () => ({}),
+        },
         qty: {
             type: Number,
             required: true,
             min: 1,
         },
     },
-    { _id: true }
+    { _id: true },
 );
 
 const PackingListSchema: Schema<PackingListDocument> = new Schema(
@@ -97,7 +127,7 @@ const PackingListSchema: Schema<PackingListDocument> = new Schema(
             enum: ["Pending", "In Transit queue", "Completed"],
             default: "In Transit queue",
         },
-    }
+    },
 );
 
 PackingListSchema.add(BaseSchema);
@@ -105,13 +135,15 @@ PackingListSchema.add(BaseSchema);
 PackingListSchema.index({ packingDate: -1 });
 PackingListSchema.index({ packingListStatus: 1 });
 PackingListSchema.index({ "styles.indianStoreStockTransfer": 1 });
-PackingListSchema.index({ "styles.indianStoreStockTransferProduct": 1 });
+PackingListSchema.index({
+    "styles.indianStoreStockTransferProduct": 1,
+});
 
 const PackingListModel =
     mongoose.models.PackingList ||
     mongoose.model<PackingListDocument>(
         "PackingList",
-        PackingListSchema
+        PackingListSchema,
     );
 
 export default PackingListModel;

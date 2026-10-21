@@ -181,17 +181,39 @@ export const message = {
         "Indian store stock transfer products fetched successfully",
     USE_ONLY_ONE_STORE_FILTER: "Use only store field",
     PACKING_LIST_STATUS_INVALID: "Packing list status invalid",
-    PACKING_LIST_CREATED: "Packing list created successfully",
-    PACKING_LIST_CREATE_FAILED: "Failed to create packing list. A duplicate entry already exists.",
-    PACKING_LISTS_FETCHED: "Packing lists fetched successfully",
-    PACKING_LISTS_FETCH_FAILED: "Failed to fetch packing lists",
-    PACKING_LIST_FETCHED: "Packing list fetched successfully",
-    PACKING_LIST_UPDATED: "Packing list updated successfully",
-    PACKING_LIST_DELETED: "Packing list deleted successfully",
-    PACKING_LIST_NOT_FOUND: "Packing list not found",
-    PACKING_LIST_ID_INVALID: "Invalid packing list ID",
-    PACKING_LIST_STATUS_INVALID: "Invalid packing list status",
+
     PACKING_LIST_VALIDATION_FAILED: "Invalid packing list data",
     PACKING_ID_GENERATION_FAILED: "Failed to generate a packing ID. Please try again.",
+    PACKING_STYLES_AED_CONVERTED:
+        "Packing styles converted to AED successfully",
+
+    PACKING_STYLE_TRANSIT_REQUIRED:
+        "At least one packing style transit update is required",
+
+    PACKING_STYLE_ID_INVALID:
+        "Invalid packing style ID",
+
+    DUPLICATE_PACKING_STYLE_ID:
+        "Duplicate packing style IDs are not allowed",
+
+    PACKING_STYLE_TRANSIT_INVALID:
+        "Transit values must be valid non-negative numbers",
+
+    PACKING_STYLE_NOT_FOUND:
+        "One or more packing styles were not found",
+    PACKING_LIST_STATUS_UPDATED:
+        "Packing list statuses updated successfully",
+
+    PACKING_LIST_IDS_REQUIRED:
+        "At least one packing list ID is required",
+
+
+    DUPLICATE_PACKING_LIST_IDS:
+        "Duplicate packing list IDs are not allowed",
+
+
+
+    PACKING_LISTS_NOT_FOUND:
+        "One or more packing lists were not found",
 
 };

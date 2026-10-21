@@ -4,7 +4,14 @@ import PackingListModel, {
     type PackingListStatus,
 } from "../../models/packingListModel";
 import { getPaginationMeta } from "../../utils/pagination";
-
+interface TransitUpdate {
+    styleId: string;
+    transit: {
+        perPcAED: number;
+        expenseRecAED: number;
+        updatedUnitRateAED: number;
+    };
+}
 const packingListLookups = [
     {
         $lookup: {
@@ -21,10 +28,9 @@ const packingListLookups = [
                     input: "$styles",
                     as: "style",
                     in: {
-                        $mergeObjects: [
-                            "$$style",
-                            {
-                                indianStoreStockTransfer: {
+                        $let: {
+                            vars: {
+                                transfer: {
                                     $arrayElemAt: [
                                         {
                                             $filter: {
@@ -42,7 +48,54 @@ const packingListLookups = [
                                     ],
                                 },
                             },
-                        ],
+                            in: {
+                                $mergeObjects: [
+                                    "$$style",
+                                    {
+                                        indianStoreStockTransfer: {
+                                            $ifNull: [
+                                                "$$transfer",
+                                                "$$style.indianStoreStockTransfer",
+                                            ],
+                                        },
+                                        indianStoreStockTransferProduct: {
+                                            $let: {
+                                                vars: {
+                                                    product: {
+                                                        $arrayElemAt: [
+                                                            {
+                                                                $filter: {
+                                                                    input: {
+                                                                        $ifNull: [
+                                                                            "$$transfer.products",
+                                                                            [],
+                                                                        ],
+                                                                    },
+                                                                    as: "product",
+                                                                    cond: {
+                                                                        $eq: [
+                                                                            "$$product._id",
+                                                                            "$$style.indianStoreStockTransferProduct",
+                                                                        ],
+                                                                    },
+                                                                },
+                                                            },
+                                                            0,
+                                                        ],
+                                                    },
+                                                },
+                                                in: {
+                                                    $ifNull: [
+                                                        "$$product",
+                                                        "$$style.indianStoreStockTransferProduct",
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                            },
+                        },
                     },
                 },
             },
@@ -100,6 +153,9 @@ const packingListLookups = [
                     "$deletedBy",
                 ],
             },
+            totalExpense: {
+                $sum: "$dailyExpenses.amount",
+            },
         },
     },
     {
@@ -118,7 +174,6 @@ export const create = async (
     const packingList = new PackingListModel(packingListData);
     return packingList.save();
 };
-
 
 export const getAllPackingLists = async (
     page: number,
@@ -142,13 +197,6 @@ export const getAllPackingLists = async (
             { $skip: skip },
             { $limit: limit },
             ...packingListLookups,
-            {
-                $set: {
-                    totalExpense: {
-                        $sum: "$dailyExpenses.amount",
-                    },
-                },
-            },
         ]).exec(),
         PackingListModel.countDocuments(filter).exec(),
     ]);
@@ -172,19 +220,10 @@ export const findById = async (id: string) => {
             },
         },
         ...packingListLookups,
-        {
-            $set: {
-                totalExpense: {
-                    $sum: "$dailyExpenses.amount",
-                },
-            },
-        },
     ]).exec();
 
     return packingLists[0] ?? null;
 };
-
-
 
 export const updateById = async (
     id: string,
@@ -239,4 +278,85 @@ export const generatePackingId = async (): Promise<string> => {
     return `${PACKING_ID_PREFIX}${String(
         lastNumber + 1,
     ).padStart(PACKING_ID_PADDING, "0")}`;
+};
+export const updateStylesTransit = async (
+    updates: TransitUpdate[],
+    updatedBy: mongoose.Types.ObjectId,
+) => {
+    const now = new Date();
+
+    const operations = updates.map(({ styleId, transit }) => ({
+        updateOne: {
+            filter: {
+                isDeleted: false,
+                "styles._id": new mongoose.Types.ObjectId(styleId),
+            },
+            update: {
+                $set: {
+                    "styles.$[style].transit": transit,
+                    updatedBy,
+                    userUpdatedDate: now,
+                },
+            },
+            arrayFilters: [
+                {
+                    "style._id": new mongoose.Types.ObjectId(styleId),
+                },
+            ],
+        },
+    }));
+
+    return PackingListModel.bulkWrite(operations);
+};
+export const findStylesByIds = async (styleIds: string[]) => {
+    const objectIds = styleIds.map(
+        (id) => new mongoose.Types.ObjectId(id),
+    );
+
+    return PackingListModel.aggregate([
+        {
+            $match: {
+                isDeleted: false,
+                "styles._id": { $in: objectIds },
+            },
+        },
+        {
+            $unwind: "$styles",
+        },
+        {
+            $match: {
+                "styles._id": { $in: objectIds },
+            },
+        },
+        {
+            $project: {
+                _id: 0,
+                styleId: "$styles._id",
+            },
+        },
+    ]);
+};
+
+export const updatePackingListsStatus = async (
+    packingListIds: string[],
+    packingListStatus: PackingListStatus,
+    updatedBy: mongoose.Types.ObjectId,
+) => {
+    const objectIds = packingListIds.map(
+        (id) => new mongoose.Types.ObjectId(id),
+    );
+
+    return PackingListModel.updateMany(
+        {
+            _id: { $in: objectIds },
+            isDeleted: false,
+        },
+        {
+            $set: {
+                packingListStatus,
+                updatedBy,
+                userUpdatedDate: new Date(),
+            },
+        },
+    );
 };
