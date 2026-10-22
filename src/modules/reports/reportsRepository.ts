@@ -8,6 +8,8 @@ import BillingModel from "../../models/billingModel";
 import CustomerModel from "../../models/customerModel";
 import ReceiptEntryModel from "../../models/receiptEntryModel";
 import DailyExpenseModel from "../../models/dailyExpenseModel";
+import PackingListModel from "../../models/packingListModel";
+import UAEStoreStockTransferModel from "../../models/uaeStoreStockTransferModel";
 export const findAllPurchaseEntryReports = async (
     page: number,
     limit: number,
@@ -286,3 +288,124 @@ export const findAllDebitReports = async (
         pagination: getPaginationMeta(page, limit, totalRecords),
     };
 };
+export const findAllTransitReports = async (
+    page: number,
+    limit: number,
+) => {
+    const skip = (page - 1) * limit;
+
+    const result = await PackingListModel.aggregate([
+        {
+            $match: {
+                isDeleted: false,
+            },
+        },
+        {
+            $sort: {
+                packingDate: -1,
+                createdAt: -1,
+            },
+        },
+        {
+            $facet: {
+                data: [
+                    {
+                        $skip: skip,
+                    },
+                    {
+                        $limit: limit,
+                    },
+                    {
+                        $lookup: {
+                            from: UAEStoreStockTransferModel.collection.name,
+                            let: {
+                                styleNumbers: "$styles.styleNo",
+                            },
+                            pipeline: [
+                                {
+                                    $match: {
+                                        isDeleted: false,
+                                    },
+                                },
+                                {
+                                    $match: {
+                                        $expr: {
+                                            $gt: [
+                                                {
+                                                    $size: {
+                                                        $filter: {
+                                                            input: "$products",
+                                                            as: "product",
+                                                            cond: {
+                                                                $in: [
+                                                                    "$$product.styleNo",
+                                                                    "$$styleNumbers",
+                                                                ],
+                                                            },
+                                                        },
+                                                    },
+                                                },
+                                                0,
+                                            ],
+                                        },
+                                    },
+                                },
+                                {
+                                    $addFields: {
+                                        products: {
+                                            $filter: {
+                                                input: "$products",
+                                                as: "product",
+                                                cond: {
+                                                    $in: [
+                                                        "$$product.styleNo",
+                                                        "$$styleNumbers",
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                                {
+                                    $project: {
+                                        __v: 0,
+                                        "products.__v": 0,
+                                    },
+                                },
+                            ],
+                            as: "uaeReturns",
+                        },
+                    },
+                    {
+                        $lookup: {
+                            from: "dailyexpenses",
+                            localField: "dailyExpenses",
+                            foreignField: "_id",
+                            as: "dailyExpenses",
+                        },
+                    },
+                    {
+                        $project: {
+                            __v: 0,
+                            "dailyExpenses.__v": 0,
+                        },
+                    },
+                ],
+                totalRecords: [
+                    {
+                        $count: "count",
+                    },
+                ],
+            },
+        },
+    ]);
+
+    const data = result[0]?.data ?? [];
+    const totalRecords = result[0]?.totalRecords[0]?.count ?? 0;
+
+    return {
+        data,
+        pagination: getPaginationMeta(page, limit, totalRecords),
+    };
+};
+

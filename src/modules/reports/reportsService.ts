@@ -19,3 +19,9 @@ export const getAllDebitReportsService = async (
 ) => {
     return reportsRepository.findAllDebitReports(page, limit);
 };
+export const getAllTransitReportsService = async (
+    page: number,
+    limit: number,
+) => {
+    return reportsRepository.findAllTransitReports(page, limit);
+};

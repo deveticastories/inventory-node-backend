@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import * as vendorRepo from "./vendorRepository";
+import { message } from "../../constants/responseMessage";
 
 import type { VendorDocument } from "../../models/vendorModel";
 import { CreateVendorInput, UpdateVendorInput } from "../../validation/vendorValidation";

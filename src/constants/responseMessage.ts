@@ -268,6 +268,8 @@ export const message = {
     PURCHASE_ENTRY_FETCH_SUCCESS: "Purchase entry fetched",
     SALES_REPORT_FETCH_SUCCESS: "Sales reports fetched successfully",
     INVALID_ID: "Invalid bill ID",
-    DEBIT_REPORT_FETCH_SUCCESS: "Debit report fetched successfully"
+    DEBIT_REPORT_FETCH_SUCCESS: "Debit report fetched successfully",
+    VENDOR_FETCH_FAILED: "Vendor details fetch failed",
+    TRANSIT_REPORT_FETCH_SUCCESS: "Transit reports fetched successfully",
 
 };

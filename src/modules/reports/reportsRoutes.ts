@@ -4,6 +4,7 @@ import {
     getAllPurchaseEntryReportsController,
     getAllSalesReportsController,
     getAllDebitReportsController,
+    getAllTransitReportsController,
 } from "./reportsController";
 
 const router = Router();
@@ -14,7 +15,7 @@ router.use(verifyToken);
  * @swagger
  * tags:
  *   - name: Reports
- *     description: Purchase entry, sales, and debit reports
+ *     description: Purchase entry, sales, debit, and transit reports
  */
 
 /**
@@ -108,14 +109,12 @@ router.get("/sales", getAllSalesReportsController);
  *           type: integer
  *           minimum: 1
  *           default: 1
- *         description: Page number
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
  *           minimum: 1
  *           default: 10
- *         description: Number of debit records per page
  *     responses:
  *       200:
  *         description: Debit reports retrieved successfully
@@ -127,5 +126,39 @@ router.get("/sales", getAllSalesReportsController);
  *         description: Internal server error
  */
 router.get("/debit", getAllDebitReportsController);
+
+/**
+ * @swagger
+ * /api/reports/transit:
+ *   get:
+ *     summary: Get all transit reports
+ *     description: Retrieves paginated packing lists with transit details, daily expenses, and matching UAE stock return products based on style number.
+ *     tags: [Reports]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 10
+ *         description: Number of packing lists per page
+ *     responses:
+ *       200:
+ *         description: Transit reports retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/transit", getAllTransitReportsController);
 
 export default router;

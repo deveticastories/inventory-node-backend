@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Vendor, { type VendorDocument } from "../../models/vendorModel";
 import { getPaginationMeta } from "../../utils/pagination";
+import PurchaseEntryModel from "../../models/purchaseEntryModel";
 
 export const create = async (
   vendorData: Partial<VendorDocument>,

@@ -2,8 +2,10 @@ import { Router } from "express";
 import * as vendorController from "./vendorController";
 import verifyToken from "../../middleware/verifyToken";
 import { validate } from "../../middleware/validate";
-import { createVendorValidation, updateVendorValidation } from "../../validation/vendorValidation";
-
+import {
+  createVendorValidation,
+  updateVendorValidation,
+} from "../../validation/vendorValidation";
 
 const router = Router();
 
@@ -156,6 +158,8 @@ router.post(
  *         description: Unauthorized
  */
 router.get("/", vendorController.getAllVendors);
+
+
 
 /**
  * @swagger
