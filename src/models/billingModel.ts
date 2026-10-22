@@ -86,7 +86,7 @@ const BillingSchema = new Schema<BillingDocument>(
         },
         customer: {
             type: Schema.Types.ObjectId,
-            ref: "User",
+            ref: "Customer",
             required: true,
             index: true,
         },

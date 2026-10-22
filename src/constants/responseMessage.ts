@@ -265,5 +265,8 @@ export const message = {
     RECEIPT_ENTRY_NOT_FOUND: "Receipt entry not found",
     RECEIPT_ENTRY_UPDATED: "Receipt entry updated successfully",
     RECEIPT_ENTRY_DELETED: "Receipt entry deleted successfully",
+    PURCHASE_ENTRY_FETCH_SUCCESS: "Purchase entry fetched",
+    SALES_REPORT_FETCH_SUCCESS: "Sales reports fetched successfully",
+    INVALID_ID: "Invalid bill ID",
 
 };

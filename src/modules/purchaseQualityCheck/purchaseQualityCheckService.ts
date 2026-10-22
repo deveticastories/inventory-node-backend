@@ -1,25 +1,47 @@
-
 import mongoose from "mongoose";
 import * as purchaseQualityCheckRepo from "./purchaseQualityCheckRepository";
 import { message } from "../../constants/responseMessage";
 
+interface QualityCheckProductInput {
+    purchaseEntryProduct: string;
+    damageQty: number;
+}
+
 interface QualityCheckInput {
     purchaseEntry: string;
-    products: {
-        damageQty: number;
-    }[];
+    products: QualityCheckProductInput[];
 }
+
+interface PurchaseProduct {
+    _id: mongoose.Types.ObjectId;
+    productName: string;
+    purchaseQty: number;
+    purchaseRate: number;
+}
+
+const getErrorMessage = (key: string, fallback: string) => {
+    return (message as Record<string, string>)[key] ?? fallback;
+};
 
 export const createOrUpdateQualityCheckService = async (
     data: QualityCheckInput,
     checkedBy: string,
 ) => {
     if (!mongoose.Types.ObjectId.isValid(data.purchaseEntry)) {
-        throw new Error("Invalid purchase entry ID");
+        throw new Error(
+            getErrorMessage(
+                "INVALID_PURCHASE_ENTRY_ID",
+                "Invalid purchase entry ID",
+            ),
+        );
     }
 
     if (!mongoose.Types.ObjectId.isValid(checkedBy)) {
         throw new Error("Invalid user ID");
+    }
+
+    if (!Array.isArray(data.products) || data.products.length === 0) {
+        throw new Error("At least one product is required");
     }
 
     const purchaseEntry =
@@ -28,34 +50,79 @@ export const createOrUpdateQualityCheckService = async (
         );
 
     if (!purchaseEntry) {
-        throw new Error("Purchase entry not found");
+        throw new Error(
+            getErrorMessage(
+                "PURCHASE_ENTRY_NOT_FOUND",
+                "Purchase entry not found",
+            ),
+        );
     }
 
-    if (purchaseEntry.products.length !== data.products.length) {
-        throw new Error("Damage quantities must be provided for every product");
+    const purchaseProducts =
+        purchaseEntry.products as unknown as PurchaseProduct[];
+
+    if (data.products.length !== purchaseProducts.length) {
+        throw new Error(
+            "A damage quantity must be provided for every purchase product",
+        );
     }
 
-    const products = purchaseEntry.products.map((product: { purchaseQty: number; productName: any; purchaseRate: number; }, index: number) => {
-        const damageQty = data.products[index]?.damageQty;
+    const purchaseProductsById = new Map(
+        purchaseProducts.map((product) => [
+            product._id.toString(),
+            product,
+        ]),
+    );
+
+    const submittedProductIds = new Set<string>();
+
+    const products = data.products.map((inputProduct) => {
+        if (
+            !mongoose.Types.ObjectId.isValid(
+                inputProduct.purchaseEntryProduct,
+            )
+        ) {
+            throw new Error("Invalid purchase product ID");
+        }
+
+        const productId = inputProduct.purchaseEntryProduct;
+
+        if (submittedProductIds.has(productId)) {
+            throw new Error("Duplicate purchase product ID");
+        }
+
+        submittedProductIds.add(productId);
+
+        const purchaseProduct = purchaseProductsById.get(productId);
+
+        if (!purchaseProduct) {
+            throw new Error(
+                "Product does not belong to the selected purchase entry",
+            );
+        }
+
+        const damageQty = inputProduct.damageQty;
 
         if (
             typeof damageQty !== "number" ||
             !Number.isInteger(damageQty) ||
             damageQty < 0 ||
-            damageQty > product.purchaseQty
+            damageQty > purchaseProduct.purchaseQty
         ) {
             throw new Error(
-                `Invalid damage quantity for ${product.productName}`,
+                `Invalid damage quantity for ${purchaseProduct.productName}`,
             );
         }
 
-        const approvedQty = product.purchaseQty - damageQty;
-        const payableAfterQC = approvedQty * product.purchaseRate;
+        const approvedQty = purchaseProduct.purchaseQty - damageQty;
+        const payableAfterQC =
+            approvedQty * purchaseProduct.purchaseRate;
 
         return {
-            productName: product.productName,
-            totalQty: product.purchaseQty,
-            purchaseRate: product.purchaseRate,
+            purchaseEntryProduct: purchaseProduct._id,
+            productName: purchaseProduct.productName,
+            totalQty: purchaseProduct.purchaseQty,
+            purchaseRate: purchaseProduct.purchaseRate,
             damageQty,
             approvedQty,
             availableQtyAfterQC: approvedQty,
@@ -63,23 +130,29 @@ export const createOrUpdateQualityCheckService = async (
         };
     });
 
+    if (submittedProductIds.size !== purchaseProducts.length) {
+        throw new Error(
+            "A damage quantity must be provided for every purchase product",
+        );
+    }
+
     const totalApprovedQty = products.reduce(
-        (total: any, product: { approvedQty: any; }) => total + product.approvedQty,
+        (total, product) => total + product.approvedQty,
         0,
     );
 
     const totalDamagedQty = products.reduce(
-        (total: any, product: { damageQty: any; }) => total + product.damageQty,
+        (total, product) => total + product.damageQty,
         0,
     );
 
     const availableQtyAfterQC = products.reduce(
-        (total: any, product: { availableQtyAfterQC: any; }) => total + product.availableQtyAfterQC,
+        (total, product) => total + product.availableQtyAfterQC,
         0,
     );
 
     const payableAfterQC = products.reduce(
-        (total: any, product: { payableAfterQC: any; }) => total + product.payableAfterQC,
+        (total, product) => total + product.payableAfterQC,
         0,
     );
 
@@ -109,68 +182,16 @@ export const createOrUpdateQualityCheckService = async (
         );
     }
 
-    const qualityCheck = await purchaseQualityCheckRepo.createQualityCheck(
-        qualityCheckData,
-    );
+    const qualityCheck =
+        await purchaseQualityCheckRepo.createQualityCheck(
+            qualityCheckData,
+        );
 
     await purchaseQualityCheckRepo.updatePurchaseEntryQCStatus(
         data.purchaseEntry,
     );
 
     return qualityCheck;
-};
-export const getQualityCheckByIdService = async (id: string) => {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        throw new Error(message.INVALID_QUALITY_CHECK_ID);
-    }
-
-    const qualityCheck =
-        await purchaseQualityCheckRepo.findQualityCheckById(id);
-
-    if (!qualityCheck) {
-        throw new Error(message.PURCHASE_QUALITY_CHECK_NOT_FOUND);
-    }
-
-    const purchaseEntry = qualityCheck.purchaseEntry as any;
-
-    const approvedProducts = qualityCheck.products
-        .filter((product: { approvedQty: number }) => product.approvedQty > 0)
-        .map((product: {
-            productName: string;
-            approvedQty: number;
-            purchaseRate: number;
-            payableAfterQC: number;
-        }) => ({
-            productName: product.productName,
-            qty: product.approvedQty,
-            rate: product.purchaseRate,
-            amount: product.payableAfterQC,
-        }));
-
-    const damagedProducts = qualityCheck.products
-        .filter((product: { damageQty: number; }) => product.damageQty > 0)
-        .map((product: { productName: any; damageQty: number; purchaseRate: number; }) => ({
-            productName: product.productName,
-            qty: product.damageQty,
-            rate: product.purchaseRate,
-            amount: product.damageQty * product.purchaseRate,
-        }));
-
-    return {
-        purchaseEntry: {
-            _id: purchaseEntry._id,
-            invoiceNo: purchaseEntry.invoiceNo,
-            purchaseDate: purchaseEntry.purchaseDate,
-            vendor: purchaseEntry.vendor,
-        },
-        summary: {
-            availableQtyAfterQC: qualityCheck.availableQtyAfterQC,
-            damagedQty: qualityCheck.totalDamagedQty,
-            payableAfterQC: qualityCheck.payableAfterQC,
-        },
-        approvedProducts,
-        damagedProducts,
-    };
 };
 
 const formatQualityCheck = (qualityCheck: any) => {
@@ -179,6 +200,7 @@ const formatQualityCheck = (qualityCheck: any) => {
     const approvedProducts = qualityCheck.products
         .filter((product: any) => product.approvedQty > 0)
         .map((product: any) => ({
+            purchaseEntryProduct: product.purchaseEntryProduct,
             productName: product.productName,
             qty: product.approvedQty,
             rate: product.purchaseRate,
@@ -188,6 +210,7 @@ const formatQualityCheck = (qualityCheck: any) => {
     const damagedProducts = qualityCheck.products
         .filter((product: any) => product.damageQty > 0)
         .map((product: any) => ({
+            purchaseEntryProduct: product.purchaseEntryProduct,
             productName: product.productName,
             qty: product.damageQty,
             rate: product.purchaseRate,
@@ -198,11 +221,12 @@ const formatQualityCheck = (qualityCheck: any) => {
         _id: qualityCheck._id,
         purchaseEntry: {
             _id: purchaseEntry?._id,
-            invoiceNo: purchaseEntry?.itemMaster?.invoiceNo,
+            invoiceNo: purchaseEntry?.invoiceNo,
             purchaseDate: purchaseEntry?.purchaseDate,
             vendor: purchaseEntry?.vendor,
         },
         summary: {
+            totalApprovedQty: qualityCheck.totalApprovedQty,
             availableQtyAfterQC: qualityCheck.availableQtyAfterQC,
             damagedQty: qualityCheck.totalDamagedQty,
             payableAfterQC: qualityCheck.payableAfterQC,
@@ -212,11 +236,41 @@ const formatQualityCheck = (qualityCheck: any) => {
     };
 };
 
+export const getQualityCheckByIdService = async (id: string) => {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error(
+            getErrorMessage(
+                "INVALID_QUALITY_CHECK_ID",
+                "Invalid quality check ID",
+            ),
+        );
+    }
+
+    const qualityCheck =
+        await purchaseQualityCheckRepo.findQualityCheckById(id);
+
+    if (!qualityCheck) {
+        throw new Error(
+            getErrorMessage(
+                "PURCHASE_QUALITY_CHECK_NOT_FOUND",
+                "Purchase quality check not found",
+            ),
+        );
+    }
+
+    return formatQualityCheck(qualityCheck);
+};
+
 export const getQualityCheckByPurchaseEntryService = async (
     purchaseEntryId: string,
 ) => {
     if (!mongoose.Types.ObjectId.isValid(purchaseEntryId)) {
-        throw new Error(message.INVALID_PURCHASE_ENTRY_ID);
+        throw new Error(
+            getErrorMessage(
+                "INVALID_PURCHASE_ENTRY_ID",
+                "Invalid purchase entry ID",
+            ),
+        );
     }
 
     const qualityCheck =
@@ -225,14 +279,29 @@ export const getQualityCheckByPurchaseEntryService = async (
         );
 
     if (!qualityCheck) {
-        throw new Error(message.PURCHASE_QUALITY_CHECK_NOT_FOUND);
+        throw new Error(
+            getErrorMessage(
+                "PURCHASE_QUALITY_CHECK_NOT_FOUND",
+                "Purchase quality check not found",
+            ),
+        );
     }
 
-    if (!qualityCheck.purchaseEntry) {
-        throw new Error(message.PURCHASE_ENTRY_NOT_FOUND);
+    const populatedQualityCheck =
+        await purchaseQualityCheckRepo.findQualityCheckById(
+            qualityCheck._id.toString(),
+        );
+
+    if (!populatedQualityCheck) {
+        throw new Error(
+            getErrorMessage(
+                "PURCHASE_QUALITY_CHECK_NOT_FOUND",
+                "Purchase quality check not found",
+            ),
+        );
     }
 
-    return formatQualityCheck(qualityCheck);
+    return formatQualityCheck(populatedQualityCheck);
 };
 
 export const getAllQualityChecksService = async () => {
