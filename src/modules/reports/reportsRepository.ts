@@ -7,7 +7,7 @@ import mongoose from "mongoose";
 import BillingModel from "../../models/billingModel";
 import CustomerModel from "../../models/customerModel";
 import ReceiptEntryModel from "../../models/receiptEntryModel";
-
+import DailyExpenseModel from "../../models/dailyExpenseModel";
 export const findAllPurchaseEntryReports = async (
     page: number,
     limit: number,
@@ -190,6 +190,96 @@ export const findAllSalesReports = async (
 
     const data = result[0]?.data ?? [];
     const totalRecords = result[0]?.totalRecords[0]?.count ?? 0;
+
+    return {
+        data,
+        pagination: getPaginationMeta(page, limit, totalRecords),
+    };
+};
+export const findAllDebitReports = async (
+    page: number,
+    limit: number,
+) => {
+    const skip = (page - 1) * limit;
+
+    const [paymentResult, expenseResult] = await Promise.all([
+        PaymentEntryModel.aggregate([
+            {
+                $match: {
+                    isDeleted: false,
+                },
+            },
+            {
+                $lookup: {
+                    from: PurchaseEntryModel.collection.name,
+                    localField: "purchaseInvoice",
+                    foreignField: "_id",
+                    as: "purchaseInvoice",
+                },
+            },
+            {
+                $unwind: {
+                    path: "$purchaseInvoice",
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+            {
+                $lookup: {
+                    from: VendorModel.collection.name,
+                    localField: "purchaseInvoice.vendor",
+                    foreignField: "_id",
+                    as: "vendor",
+                },
+            },
+            {
+                $unwind: {
+                    path: "$vendor",
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+            {
+                $project: {
+                    __v: 0,
+                    "purchaseInvoice.__v": 0,
+                    "vendor.__v": 0,
+                },
+            },
+        ]),
+
+        DailyExpenseModel.aggregate([
+            {
+                $match: {
+                    isDeleted: false,
+                },
+            },
+            {
+                $project: {
+                    __v: 0,
+                },
+            },
+        ]),
+    ]);
+
+    const paymentRecords = paymentResult.map((payment) => ({
+        ...payment,
+        type: "PaymentEntry",
+        reportDate: payment.createdAt,
+    }));
+
+    const expenseRecords = expenseResult.map((expense) => ({
+        ...expense,
+        type: "DailyExpense",
+        reportDate: expense.date,
+    }));
+
+    const allRecords = [...paymentRecords, ...expenseRecords].sort(
+        (a, b) =>
+            new Date(b.reportDate).getTime() -
+            new Date(a.reportDate).getTime(),
+    );
+
+    const totalRecords = allRecords.length;
+    const data = allRecords.slice(skip, skip + limit);
 
     return {
         data,

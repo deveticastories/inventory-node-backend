@@ -13,3 +13,9 @@ export const getAllSalesReportsService = async (
 ) => {
     return reportsRepository.findAllSalesReports(page, limit, billId);
 };
+export const getAllDebitReportsService = async (
+    page: number,
+    limit: number,
+) => {
+    return reportsRepository.findAllDebitReports(page, limit);
+};

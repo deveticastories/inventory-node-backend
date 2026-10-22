@@ -3,6 +3,7 @@ import verifyToken from "../../middleware/verifyToken";
 import {
     getAllPurchaseEntryReportsController,
     getAllSalesReportsController,
+    getAllDebitReportsController,
 } from "./reportsController";
 
 const router = Router();
@@ -13,7 +14,7 @@ router.use(verifyToken);
  * @swagger
  * tags:
  *   - name: Reports
- *     description: Purchase entry and sales reports
+ *     description: Purchase entry, sales, and debit reports
  */
 
 /**
@@ -90,5 +91,41 @@ router.get("/purchase-entry", getAllPurchaseEntryReportsController);
  *         description: Internal server error
  */
 router.get("/sales", getAllSalesReportsController);
+
+/**
+ * @swagger
+ * /api/reports/debit:
+ *   get:
+ *     summary: Get all debit reports
+ *     description: Retrieves paginated debit records from payment entries and daily expenses, sorted by report date.
+ *     tags: [Reports]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 10
+ *         description: Number of debit records per page
+ *     responses:
+ *       200:
+ *         description: Debit reports retrieved successfully
+ *       400:
+ *         description: Invalid pagination parameters
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/debit", getAllDebitReportsController);
 
 export default router;
