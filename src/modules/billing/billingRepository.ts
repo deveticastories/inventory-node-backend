@@ -149,3 +149,17 @@ export const softDeleteBillingById = async (id: string) => {
         },
     );
 };
+export const generateInvoiceNo = async (): Promise<string> => {
+    const lastBilling = await BillingModel.findOne({
+        invoiceNo: { $regex: /^INV-\d+$/ },
+    })
+        .sort({ createdAt: -1 })
+        .select("invoiceNo")
+        .lean();
+
+    const lastNumber = lastBilling
+        ? parseInt(lastBilling.invoiceNo.replace("INV-", ""), 10)
+        : 0;
+
+    return `INV-${String(lastNumber + 1).padStart(4, "0")}`;
+};

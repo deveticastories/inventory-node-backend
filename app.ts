@@ -15,6 +15,8 @@ import dailyExpenseRoutes from "./src/modules/dailyExpense/dailyExpenseRoutes";
 import packingListRoutes from "./src/modules/packingList/packingListRoutes";
 import uaeStoreStockTransferRoutes from "./src/modules/uaeStoreStockTransfer/uaeStoreStockTransferRoutes";
 import billingRoutes from "./src/modules/billing/billingRoutes"
+import paymentEntriesRoutes from "./src/modules/paymentEntry/paymentEntryRoutes"
+import receiptEntryRoutes from "./src/modules/receiptEntry/receiptEntryRoutes"
 
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./src/config/swagger";
@@ -36,4 +38,6 @@ app.use("/api/daily-expenses", dailyExpenseRoutes);
 app.use("/api/packing-lists", packingListRoutes);
 app.use("/api/uae-store-stock-transfers", uaeStoreStockTransferRoutes);
 app.use("/api/billings/", billingRoutes)
+app.use("/api/payment-entries", paymentEntriesRoutes)
+app.use("/api/receipt-entries", receiptEntryRoutes)
 export default app;

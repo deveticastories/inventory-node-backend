@@ -5,19 +5,13 @@ import { BaseDocument, BaseSchema } from "./baseModel";
 export interface PaymentEntry extends BaseDocument {
     paymentVoucherNo: string;
     purchaseInvoice: mongoose.Types.ObjectId;
-    purchaseInvoiceNo: string;
-    purchaseInvoiceDate: Date;
-    vendor: mongoose.Types.ObjectId;
-    vendorName: string;
-    payableAmount: number;
     paidAmount: number;
     balanceAmount: number;
-    paidDate: Date;
 }
 
 export type PaymentEntryDocument = PaymentEntry & Document;
 
-const PaymentEntrySchema: Schema<PaymentEntryDocument> = new Schema(
+const PaymentEntrySchema = new Schema<PaymentEntryDocument>(
     {
         paymentVoucherNo: {
             type: String,
@@ -27,32 +21,9 @@ const PaymentEntrySchema: Schema<PaymentEntryDocument> = new Schema(
         },
         purchaseInvoice: {
             type: Schema.Types.ObjectId,
-            ref: "PurchaseInvoice",
+            ref: "PurchaseEntry",
             required: true,
-        },
-        purchaseInvoiceNo: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        purchaseInvoiceDate: {
-            type: Date,
-            required: true,
-        },
-        vendor: {
-            type: Schema.Types.ObjectId,
-            ref: "Vendor",
-            required: true,
-        },
-        vendorName: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        payableAmount: {
-            type: Number,
-            required: true,
-            min: 0,
+            index: true,
         },
         paidAmount: {
             type: Number,
@@ -64,25 +35,19 @@ const PaymentEntrySchema: Schema<PaymentEntryDocument> = new Schema(
             required: true,
             min: 0,
         },
-        paidDate: {
-            type: Date,
-            required: true,
-            default: Date.now,
-        },
     },
-    { timestamps: true }
+    { timestamps: true },
 );
 
 PaymentEntrySchema.add(BaseSchema);
 
 PaymentEntrySchema.index({ purchaseInvoice: 1, isDeleted: 1 });
-PaymentEntrySchema.index({ paidDate: -1 });
 
 const PaymentEntryModel =
     mongoose.models.PaymentEntry ||
     mongoose.model<PaymentEntryDocument>(
         "PaymentEntry",
-        PaymentEntrySchema
+        PaymentEntrySchema,
     );
 
 export default PaymentEntryModel;

@@ -6,7 +6,7 @@ import {
     findAllBillings,
     findBillingById,
     updateBillingById,
-    softDeleteBillingById,
+    softDeleteBillingById,generateInvoiceNo
 } from "./billingRepository";
 
 type BillingInput = {
@@ -141,18 +141,16 @@ const prepareBillingData = (data: BillingInput) => {
     };
 };
 
-const generateInvoiceNo = () =>
-    `INV-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
 export const createBillingService = async (data: BillingInput) => {
     const billingData = prepareBillingData(data);
+    const invoiceNo = await generateInvoiceNo();
 
     return createBilling({
         ...billingData,
-        invoiceNo: generateInvoiceNo(),
+        invoiceNo,
     });
 };
-
 export const getAllBillingsService = async (
     page: number,
     limit: number,
