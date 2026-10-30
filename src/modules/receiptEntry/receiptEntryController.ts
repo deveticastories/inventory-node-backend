@@ -7,6 +7,7 @@ import { statusCode } from "../../constants/statusCode";
 import { getPaginationParams } from "../../utils/pagination";
 import { RequestWithAuthData } from "../../@types/express";
 import { message } from "../../constants/responseMessage";
+import { getErrorStatus, sendError } from "../../utils/errorStatus";
 
 const getErrorResponse = (error: unknown) => {
     const err = error as {
@@ -51,11 +52,16 @@ const getErrorResponse = (error: unknown) => {
         },
     };
 
+    const status = getErrorStatus(error);
+
     return (
-        errorMap[err.message ?? ""] ?? {
-            status: statusCode.INTERNAL_SERVER_ERROR,
-            message: message.INTERNAL_SERVER_ERROR,
-        }
+        errorMap[err.message ?? ""] ??
+        (status !== statusCode.INTERNAL_SERVER_ERROR
+            ? { status, message: err.message ?? "" }
+            : {
+                status: statusCode.INTERNAL_SERVER_ERROR,
+                message: message.INTERNAL_SERVER_ERROR,
+            })
     );
 };
 
@@ -101,9 +107,16 @@ export const getAllReceiptEntries = async (
             limit: req.query.limit,
         });
 
+        const status =
+            req.query.status === "paid" || req.query.status === "outstanding"
+                ? req.query.status
+                : "all";
+        const sortBy = req.query.sortBy === "customer" ? "customer" : "date";
         const result = await receiptEntryService.getAllReceiptEntries(
             page,
             limit,
+            status,
+            sortBy,
         );
 
         return res.status(statusCode.OK).json({
@@ -243,5 +256,19 @@ export const deleteReceiptEntry = async (
             success: false,
             message: response.message,
         });
+    }
+};
+
+export const getReceivableInvoices = async (_req: Request, res: Response) => {
+    try {
+        const data = await receiptEntryService.getReceivableInvoices();
+
+        return res.status(statusCode.OK).json({
+            success: true,
+            message: "RECEIVABLE_INVOICES_FETCHED",
+            data,
+        });
+    } catch (error) {
+        return sendError(res, error, "GET_RECEIVABLE_INVOICES_ERROR");
     }
 };

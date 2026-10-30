@@ -1,6 +1,7 @@
 
 import mongoose from "mongoose";
 import VendorModel from "../../models/vendorModel";
+import PurchaseQualityCheckModel from "../../models/purchaseQualityCheckModel";
 import {
     createPurchaseEntry,
     findPurchaseEntryById,
@@ -70,7 +71,8 @@ export const createPurchaseEntryService = async (
         purchaseDate: input.purchaseDate,
         vendor: new mongoose.Types.ObjectId(input.vendor),
         ...totals,
-        totalIncludingGST: input.totalIncludingGST,
+        // Blank "Total including GST" falls back to the product total
+        totalIncludingGST: input.totalIncludingGST || totals.totalAmount,
         qcStatus: "Pending",
         createdBy,
     });
@@ -112,6 +114,10 @@ export const updatePurchaseEntryService = async (
         throw new Error("PURCHASE_NOT_FOUND");
     }
 
+    if (existingEntry.qcStatus === "Done") {
+        throw new Error("PURCHASE_QC_ALREADY_DONE");
+    }
+
     const updateData: Record<string, unknown> = {
         updatedBy,
         userUpdatedDate: new Date(),
@@ -139,12 +145,12 @@ export const updatePurchaseEntryService = async (
     }
 
     if (input.totalIncludingGST !== undefined) {
-        updateData.totalIncludingGST = input.totalIncludingGST;
+        updateData.totalIncludingGST =
+            input.totalIncludingGST ||
+            (updateData.totalAmount ?? existingEntry.totalAmount);
     }
 
-    if (input.qcStatus !== undefined) {
-        updateData.qcStatus = input.qcStatus;
-    }
+    // qcStatus is only changed by submitting a quality check
 
     const updatedEntry = await updatePurchaseEntryById(id, updateData);
 
@@ -167,6 +173,21 @@ export const updatePurchaseEntryQCService = async (
 
     if (!existingEntry) {
         throw new Error("PURCHASE_NOT_FOUND");
+    }
+
+    // "Done" is only valid once a quality check has been recorded, and a
+    // completed QC cannot be re-opened (stock and payable depend on it).
+    const qualityCheck = await PurchaseQualityCheckModel.exists({
+        purchaseEntry: existingEntry._id,
+        isDeleted: false,
+    });
+
+    if (qcStatus === "Done" && !qualityCheck) {
+        throw new Error("PURCHASE_QC_RECORD_REQUIRED");
+    }
+
+    if (qcStatus === "Pending" && qualityCheck) {
+        throw new Error("PURCHASE_QC_ALREADY_DONE");
     }
 
     const updatedEntry = await updatePurchaseEntryById(id, {
@@ -192,6 +213,10 @@ export const deletePurchaseEntryService = async (
 
     if (!existingEntry) {
         throw new Error("PURCHASE_NOT_FOUND");
+    }
+
+    if (existingEntry.qcStatus === "Done") {
+        throw new Error("PURCHASE_QC_ALREADY_DONE");
     }
 
     const deletedEntry = await deletePurchaseEntryById(id, deletedBy);

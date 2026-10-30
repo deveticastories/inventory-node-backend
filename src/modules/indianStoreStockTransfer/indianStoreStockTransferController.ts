@@ -4,7 +4,10 @@ import {
     createIndianStoreStockTransferService,
     getIndianStoreStockTransferById,
     getAllIndianStoreStockTransfers,
+    getMainStoreStock,
+    getSampleStoreStock,
 } from "./indianStoreStockTransferService";
+import { sendError } from "../../utils/errorStatus";
 import { statusCode } from "../../constants/statusCode";
 import { message } from "../../constants/responseMessage";
 import type { RequestWithAuthData } from "../../@types/express";
@@ -63,6 +66,7 @@ export const getIndianStoreStockTransferProductsController = async (
         const badRequestErrors = [
             "STORE_ID_INVALID",
             "STORE_TYPE_INVALID",
+            "STORE_NOT_IND",
         ];
 
         const status = badRequestErrors.includes(errorMessage)
@@ -107,6 +111,7 @@ export const createIndianStoreStockTransferController = async (
             "TRANSFER_QUANTITY_INVALID",
             "DUPLICATE_TRANSFER_PRODUCT",
             "INSUFFICIENT_STORE_STOCK",
+            "STORE_NOT_IND",
         ];
 
         const notFoundErrors = [
@@ -226,6 +231,7 @@ export const getAllIndianStoreStockTransfersController = async (
         const badRequestErrors = [
             "STORE_ID_INVALID",
             "ONLY_ONE_STORE_FILTER_ALLOWED",
+            "STORE_NOT_IND",
         ];
 
         const status = badRequestErrors.includes(errorMessage)
@@ -238,5 +244,51 @@ export const getAllIndianStoreStockTransfersController = async (
             success: false,
             message: errorMessage,
         });
+    }
+};
+
+const queryString = (value: unknown) =>
+    typeof value === "string" && value.trim() ? value : undefined;
+
+export const getMainStoreStockController = async (
+    req: Request,
+    res: Response,
+) => {
+    try {
+        const result = await getMainStoreStock(
+            queryString(req.query.search),
+            queryString(req.query.sortBy),
+        );
+
+        return res.status(statusCode.OK).json({
+            success: true,
+            message: "MAIN_STORE_STOCK_FETCHED",
+            summary: result.summary,
+            data: result.data,
+        });
+    } catch (error) {
+        return sendError(res, error, "GET_MAIN_STORE_STOCK_ERROR");
+    }
+};
+
+export const getSampleStoreStockController = async (
+    req: Request,
+    res: Response,
+) => {
+    try {
+        const result = await getSampleStoreStock(
+            queryString(req.query.search),
+            queryString(req.query.sortBy),
+            queryString(req.query.storeId),
+        );
+
+        return res.status(statusCode.OK).json({
+            success: true,
+            message: "SAMPLE_STORE_STOCK_FETCHED",
+            summary: result.summary,
+            data: result.data,
+        });
+    } catch (error) {
+        return sendError(res, error, "GET_SAMPLE_STORE_STOCK_ERROR");
     }
 };

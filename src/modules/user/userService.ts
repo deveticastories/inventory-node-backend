@@ -3,12 +3,21 @@ import logger from "../../utils/logger";
 import * as userRepository from "./userRepository";
 import { type UserDocument } from "../../models/userModel";
 import mongoose from "mongoose";
+import bcrypt from "bcrypt";
+
+// Same cost as the seeded super admin; login compares with bcrypt
+const PASSWORD_SALT_ROUNDS = 12;
+
+const withoutPassword = (user: UserDocument) => {
+  const { password: _password, ...rest } = user.toObject();
+  return rest as UserDocument;
+};
 
 export const createUser = async (
   userData: Partial<UserDocument>,
 ): Promise<UserDocument> => {
   try {
-    logger.info("Creating a new user", { userData });
+    logger.info("Creating a new user", { email: userData.email });
 
     if (userData.email) {
       const existingUser = await userRepository.findByEmail(
@@ -46,14 +55,19 @@ export const createUser = async (
       }
     }
 
-    const newUser = await userRepository.create(userData);
+    const newUser = await userRepository.create({
+      ...userData,
+      ...(userData.password && {
+        password: await bcrypt.hash(userData.password, PASSWORD_SALT_ROUNDS),
+      }),
+    });
 
     logger.info("User created successfully", {
       userId: newUser._id,
       email: newUser.email,
     });
 
-    return newUser;
+    return withoutPassword(newUser);
   } catch (error: any) {
     logger.error("Error creating user", {
       error: error.message,
@@ -68,7 +82,7 @@ export const editUser = async (
   userData: Partial<UserDocument>,
 ): Promise<UserDocument | null> => {
   try {
-    logger.info(`Editing user with ID ${userId}`, { userData });
+    logger.info(`Editing user with ID ${userId}`);
 
     if (userData.email) {
       const existingUser = await userRepository.findByEmail(
@@ -115,10 +129,12 @@ export const editUser = async (
       }
     }
 
-    const updatedUser = await userRepository.updateById(
-      userId,
-      userData,
-    );
+    const updatedUser = await userRepository.updateById(userId, {
+      ...userData,
+      ...(userData.password && {
+        password: await bcrypt.hash(userData.password, PASSWORD_SALT_ROUNDS),
+      }),
+    });
 
     if (!updatedUser) {
       throw new Error(`User with ID ${userId} not found`);

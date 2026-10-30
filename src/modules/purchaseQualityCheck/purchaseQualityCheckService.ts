@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import * as purchaseQualityCheckRepo from "./purchaseQualityCheckRepository";
 import { message } from "../../constants/responseMessage";
+import { round2 } from "../../utils/errorStatus";
 
 interface QualityCheckProductInput {
     purchaseEntryProduct: string;
@@ -74,6 +75,14 @@ export const createOrUpdateQualityCheckService = async (
         ]),
     );
 
+    // Payable is the approved value adjusted for GST:
+    // approved qty x rate x (invoice total incl. GST / invoice amount)
+    const totalAmount = Number(purchaseEntry.totalAmount ?? 0);
+    const gstFactor =
+        totalAmount > 0
+            ? Number(purchaseEntry.totalIncludingGST ?? 0) / totalAmount
+            : 0;
+
     const submittedProductIds = new Set<string>();
 
     const products = data.products.map((inputProduct) => {
@@ -115,8 +124,9 @@ export const createOrUpdateQualityCheckService = async (
         }
 
         const approvedQty = purchaseProduct.purchaseQty - damageQty;
-        const payableAfterQC =
-            approvedQty * purchaseProduct.purchaseRate;
+        const payableAfterQC = round2(
+            approvedQty * purchaseProduct.purchaseRate * gstFactor,
+        );
 
         return {
             purchaseEntryProduct: purchaseProduct._id,
@@ -151,9 +161,11 @@ export const createOrUpdateQualityCheckService = async (
         0,
     );
 
-    const payableAfterQC = products.reduce(
-        (total, product) => total + product.payableAfterQC,
-        0,
+    const payableAfterQC = round2(
+        products.reduce(
+            (total, product) => total + product.payableAfterQC,
+            0,
+        ),
     );
 
     const qualityCheckData = {
@@ -204,7 +216,7 @@ const formatQualityCheck = (qualityCheck: any) => {
             productName: product.productName,
             qty: product.approvedQty,
             rate: product.purchaseRate,
-            amount: product.payableAfterQC,
+            amount: product.approvedQty * product.purchaseRate,
         }));
 
     const damagedProducts = qualityCheck.products
@@ -224,7 +236,10 @@ const formatQualityCheck = (qualityCheck: any) => {
             invoiceNo: purchaseEntry?.invoiceNo,
             purchaseDate: purchaseEntry?.purchaseDate,
             vendor: purchaseEntry?.vendor,
+            totalIncludingGST: purchaseEntry?.totalIncludingGST,
         },
+        checkedBy: qualityCheck.checkedBy,
+        checkedAt: qualityCheck.createdAt,
         summary: {
             totalApprovedQty: qualityCheck.totalApprovedQty,
             availableQtyAfterQC: qualityCheck.availableQtyAfterQC,

@@ -20,84 +20,40 @@ router.use(verifyToken);
  *   schemas:
  *     PackingStyle:
  *       type: object
+ *       description: Qty is taken from TRP_MAIN STORE for the product + vendor, oldest purchase first
  *       required:
  *         - styleNo
- *         - indianStoreStockTransfer
- *         - indianStoreStockTransferProduct
+ *         - productName
+ *         - vendor
  *         - qty
  *       properties:
  *         styleNo:
  *           type: string
- *           example: STY001
- *         indianStoreStockTransfer:
+ *           description: Must be unique across all packing lists
+ *           example: ST-201
+ *         productName:
  *           type: string
- *           description: Indian Store Stock Transfer MongoDB ObjectId
+ *           example: Cotton Kurti
+ *         vendor:
+ *           type: string
+ *           description: Vendor MongoDB ObjectId
  *           example: "68f1a1234567890123456789"
- *         indianStoreStockTransferProduct:
- *           type: string
- *           description: Product subdocument ID from the transfer's products array
- *           example: "68f1a1234567890123456788"
  *         qty:
- *           type: number
+ *           type: integer
  *           minimum: 1
- *           example: 100
+ *           example: 20
  *
- *     PackingStyleTransitUpdate:
+ *     TransferStylesToUAE:
  *       type: object
  *       required:
- *         - styleId
- *         - transit
+ *         - styleIds
  *       properties:
- *         styleId:
- *           type: string
- *           description: MongoDB ObjectId of a style subdocument inside PackingList.styles
- *           example: "68f1a1234567890123456788"
- *         transit:
- *           type: object
- *           required:
- *             - perPcAED
- *             - expenseRecAED
- *             - updatedUnitRateAED
- *           properties:
- *             perPcAED:
- *               type: number
- *               minimum: 0
- *               example: 12.5
- *             expenseRecAED:
- *               type: number
- *               minimum: 0
- *               example: 100
- *             updatedUnitRateAED:
- *               type: number
- *               minimum: 0
- *               example: 13.5
- *
- *     ConvertPackingStylesToAED:
- *       type: object
- *       required:
- *         - styles
- *       properties:
- *         styles:
+ *         styleIds:
  *           type: array
  *           minItems: 1
  *           items:
- *             $ref: '#/components/schemas/PackingStyleTransitUpdate'
- *
- *     ConvertPackingStylesToAEDResponse:
- *       type: object
- *       properties:
- *         success:
- *           type: boolean
- *           example: true
- *         message:
- *           type: string
- *           example: Packing styles converted to AED successfully
- *         data:
- *           type: object
- *           properties:
- *             updatedCount:
- *               type: integer
- *               example: 2
+ *             type: string
+ *           description: _id values of styles inside PackingList.styles
  *
  *     UpdatePackingListsStatus:
  *       type: object
@@ -380,60 +336,86 @@ router.get("/", packingListController.getAllPackingLists);
 
 /**
  * @swagger
- * /api/packing-lists/convert-to-aed:
- *   patch:
- *     summary: Update packing style transit values in AED
+ * /api/packing-lists/available-stock:
+ *   get:
+ *     summary: TRP_MAIN STORE stock available for packing
  *     description: >
- *       Updates the transit values for one or more packing style subdocuments.
- *       Each styleId must be the _id of a style inside PackingList.styles.
+ *       No query - products that have stock. productName - vendors that have
+ *       that product. productName + vendor - available qty for the pair.
  *     tags: [Packing Lists]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: productName
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: vendor
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Available stock fetched
+ */
+router.get("/available-stock", packingListController.getAvailableStock);
+
+/**
+ * @swagger
+ * /api/packing-lists/{id}/transit:
+ *   get:
+ *     summary: Transit view - AED conversion and expense recommendation per style
+ *     description: >
+ *       Uses the saved exchange rate and profit %. Updated unit rate = per pc AED +
+ *       (salary + attached expenses) / exchange rate / number of styles.
+ *     tags: [Packing Lists]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Transit details fetched
+ *       404:
+ *         description: Packing list not found
+ */
+router.get("/:id/transit", packingListController.getTransitDetails);
+
+/**
+ * @swagger
+ * /api/packing-lists/{id}/transfer-to-uae:
+ *   patch:
+ *     summary: Transfer selected styles to UAE_MAIN STORE
+ *     tags: [Packing Lists]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/ConvertPackingStylesToAED'
- *           example:
- *             styles:
- *               - styleId: "68f1a1234567890123456788"
- *                 transit:
- *                   perPcAED: 12.5
- *                   expenseRecAED: 100
- *                   updatedUnitRateAED: 13.5
- *               - styleId: "68f1a1234567890123456789"
- *                 transit:
- *                   perPcAED: 15
- *                   expenseRecAED: 80
- *                   updatedUnitRateAED: 16
+ *             $ref: '#/components/schemas/TransferStylesToUAE'
  *     responses:
  *       200:
- *         description: Packing styles converted to AED successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ConvertPackingStylesToAEDResponse'
+ *         description: Styles transferred; returns the refreshed transit details
  *       400:
- *         description: Missing styles, invalid IDs, duplicate IDs, or invalid transit values
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       401:
- *         description: Unauthorized
+ *         description: Invalid or already transferred styles
  *       404:
- *         description: One or more packing styles were not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       500:
- *         description: Internal server error
+ *         description: Packing list or style not found
  */
 router.patch(
-    "/convert-to-aed",
-    packingListController.convertPackingStylesToAED,
+    "/:id/transfer-to-uae",
+    packingListController.transferStylesToUAE,
 );
 
 /**

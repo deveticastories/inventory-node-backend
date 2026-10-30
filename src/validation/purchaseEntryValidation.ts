@@ -19,7 +19,10 @@ export const createPurchaseEntryValidation = z.object({
     1,
     message.PURCHASE_PRODUCTS_REQUIRED,
   ),
-  totalIncludingGST: z.number().min(0, message.PURCHASE_GST_TOTAL_INVALID),
+  totalIncludingGST: z
+    .number()
+    .min(0, message.PURCHASE_GST_TOTAL_INVALID)
+    .optional(),
 });
 
 export const updatePurchaseEntryValidation = z.object({
@@ -33,7 +36,6 @@ export const updatePurchaseEntryValidation = z.object({
     message.PURCHASE_PRODUCTS_REQUIRED,
   ).optional(),
   totalIncludingGST: z.number().min(0, message.PURCHASE_GST_TOTAL_INVALID).optional(),
-  qcStatus: z.enum(["Pending", "Done"]).optional(),
 });
 
 export const updatePurchaseEntryQCValidation = z.object({

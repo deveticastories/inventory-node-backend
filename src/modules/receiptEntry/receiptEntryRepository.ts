@@ -2,7 +2,7 @@
 import mongoose from "mongoose";
 import ReceiptEntryModel from "../../models/receiptEntryModel";
 import BillingModel from "../../models/billingModel";
-import UserModel from "../../models/userModel";
+import CustomerModel from "../../models/customerModel";
 import { getPaginationMeta } from "../../utils/pagination";
 
 const getReceiptEntryPipeline = () => [
@@ -22,7 +22,7 @@ const getReceiptEntryPipeline = () => [
     },
     {
         $lookup: {
-            from: UserModel.collection.name,
+            from: CustomerModel.collection.name,
             localField: "invoice.customer",
             foreignField: "_id",
             as: "customerDetails",
@@ -101,25 +101,53 @@ export const findReceiptEntriesByInvoice = async (
 export const getAllReceiptEntries = async (
     page: number,
     limit: number,
+    status: "all" | "paid" | "outstanding" = "all",
+    sortBy: "date" | "customer" = "date",
 ) => {
-    const filter = { isDeleted: false };
     const skip = (page - 1) * limit;
+    // paid / outstanding refers to the invoice's current balance
+    const statusMatch =
+        status === "paid"
+            ? [{ $match: { "invoice.balanceAmount": { $lte: 0.5 } } }]
+            : status === "outstanding"
+                ? [{ $match: { "invoice.balanceAmount": { $gt: 0.5 } } }]
+                : [];
+    const sort: Record<string, 1 | -1> =
+        sortBy === "customer"
+            ? { "invoice.customer.name": 1, createdAt: -1 }
+            : { receiptDate: -1, createdAt: -1 };
 
-    const [data, totalRecords] = await Promise.all([
-        ReceiptEntryModel.aggregate([
-            { $match: filter },
-            { $sort: { createdAt: -1 } },
-            { $skip: skip },
-            { $limit: limit },
-            ...getReceiptEntryPipeline(),
-        ]),
-        ReceiptEntryModel.countDocuments(filter),
+    const result = await ReceiptEntryModel.aggregate([
+        { $match: { isDeleted: false } },
+        ...getReceiptEntryPipeline(),
+        ...statusMatch,
+        { $sort: sort },
+        {
+            $facet: {
+                data: [{ $skip: skip }, { $limit: limit }],
+                totalRecords: [{ $count: "count" }],
+            },
+        },
     ]);
 
+    const totalRecords = result[0]?.totalRecords[0]?.count ?? 0;
+
     return {
-        data,
+        data: result[0]?.data ?? [],
         pagination: getPaginationMeta(page, limit, totalRecords),
     };
+};
+
+/** Invoices that still have a balance to receive. */
+export const findReceivableInvoices = async () => {
+    return BillingModel.find({
+        isDeleted: false,
+        balanceAmount: { $gt: 0.5 },
+    })
+        .populate("customer", "name contactNo")
+        .select("invoiceNo date customer netAmount receivedAmount balanceAmount")
+        .sort({ date: -1 })
+        .lean();
 };
 
 export const updateReceiptEntryById = async (

@@ -3,12 +3,13 @@ import mongoose, { Schema, type Document } from "mongoose";
 import { BaseDocument, BaseSchema } from "./baseModel";
 
 export interface BillingProduct {
-    uaeStoreStockTransfer: mongoose.Types.ObjectId;
-    packingStyle: mongoose.Types.ObjectId;
+    _id?: mongoose.Types.ObjectId;
+    uaeMainStock: mongoose.Types.ObjectId;
     styleNo: string;
     productName: string;
     qty: number;
     unitPrice: number;
+    costAED: number;
     amount: number;
 }
 
@@ -29,13 +30,9 @@ export type BillingDocument = Billing & Document;
 
 const BillingProductSchema = new Schema<BillingProduct>(
     {
-        uaeStoreStockTransfer: {
+        uaeMainStock: {
             type: Schema.Types.ObjectId,
-            ref: "UAEStoreStockTransfer",
-            required: true,
-        },
-        packingStyle: {
-            type: Schema.Types.ObjectId,
+            ref: "UAEMainStock",
             required: true,
         },
         styleNo: {
@@ -60,6 +57,11 @@ const BillingProductSchema = new Schema<BillingProduct>(
         unitPrice: {
             type: Number,
             required: true,
+            min: 0,
+        },
+        costAED: {
+            type: Number,
+            default: 0,
             min: 0,
         },
         amount: {

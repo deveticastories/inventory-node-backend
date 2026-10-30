@@ -1,156 +1,242 @@
-
 import mongoose from "mongoose";
-import type { Billing, BillingProduct } from "../../models/billingModel";
+import BillingModel, { type BillingProduct } from "../../models/billingModel";
+import CustomerModel from "../../models/customerModel";
+import UAEMainStockModel from "../../models/uaeMainStockModel";
+import ReceiptEntryModel from "../../models/receiptEntryModel";
+import UAEStoreStockTransferModel from "../../models/uaeStoreStockTransferModel";
 import {
     createBilling,
     findAllBillings,
     findBillingById,
     updateBillingById,
-    softDeleteBillingById,generateInvoiceNo
+    softDeleteBillingById,
+    generateInvoiceNo,
 } from "./billingRepository";
+import { round2 } from "../../utils/errorStatus";
 
 type BillingInput = {
     date?: string | Date;
     customer: string;
     products: Array<{
-        uaeStoreStockTransfer: string;
-        packingStyle: string;
-        styleNo: string;
-        productName: string;
+        uaeMainStock: string;
         qty: number;
         unitPrice: number;
     }>;
-    returnAmount?: number;
-    receivedAmount?: number;
 };
+
+type StockLine = { uaeMainStock: string; qty: number };
 
 const isValidObjectId = (value: unknown): value is string =>
     typeof value === "string" && mongoose.Types.ObjectId.isValid(value);
 
-const validateNonNegativeAmount = (value: number, field: string) => {
-    if (!Number.isFinite(value) || value < 0) {
-        throw new Error(`${field}_INVALID`);
+const parseDate = (date: unknown) => {
+    const value = date ? new Date(date as string) : new Date();
+
+    if (Number.isNaN(value.getTime())) {
+        throw new Error("BILLING_DATE_INVALID");
     }
+
+    return value;
 };
 
-const prepareBillingData = (data: BillingInput) => {
-    if (!isValidObjectId(data.customer)) {
+const validateCustomer = async (customer: unknown) => {
+    if (!isValidObjectId(customer)) {
         throw new Error("CUSTOMER_ID_INVALID");
     }
 
-    if (!Array.isArray(data.products) || data.products.length === 0) {
+    const exists = await CustomerModel.exists({
+        _id: customer,
+        isDeleted: false,
+    });
+
+    if (!exists) {
+        throw new Error("CUSTOMER_NOT_FOUND");
+    }
+
+    return new mongoose.Types.ObjectId(customer);
+};
+
+/** Builds invoice lines from UAE_MAIN STORE rows (style no, product, cost). */
+const prepareProducts = async (
+    products: unknown,
+): Promise<BillingProduct[]> => {
+    if (!Array.isArray(products) || products.length === 0) {
         throw new Error("BILLING_PRODUCTS_REQUIRED");
     }
 
-    const products: BillingProduct[] = data.products.map((product) => {
-        if (!isValidObjectId(product.uaeStoreStockTransfer)) {
-            throw new Error("UAE_STORE_STOCK_TRANSFER_ID_INVALID");
+    for (const product of products) {
+        if (!isValidObjectId(product?.uaeMainStock)) {
+            throw new Error("UAE_MAIN_STOCK_ID_INVALID");
         }
 
-        if (!isValidObjectId(product.packingStyle)) {
-            throw new Error("PACKING_STYLE_ID_INVALID");
-        }
-
-        if (
-            !Number.isInteger(product.qty) ||
-            product.qty < 1
-        ) {
+        if (!Number.isInteger(product.qty) || product.qty < 1) {
             throw new Error("BILLING_QTY_INVALID");
         }
 
         if (
-            typeof product.styleNo !== "string" ||
-            !product.styleNo.trim()
+            typeof product.unitPrice !== "number" ||
+            !Number.isFinite(product.unitPrice) ||
+            product.unitPrice <= 0
         ) {
-            throw new Error("BILLING_STYLE_NO_REQUIRED");
+            throw new Error("UNIT_PRICE_INVALID");
         }
+    }
 
-        if (
-            typeof product.productName !== "string" ||
-            !product.productName.trim()
-        ) {
-            throw new Error("BILLING_PRODUCT_NAME_REQUIRED");
+    const ids = [...new Set(products.map((product) => product.uaeMainStock))];
+    const stockRows = await UAEMainStockModel.find({
+        _id: { $in: ids },
+        isDeleted: false,
+    }).lean<any[]>();
+
+    const stockById = new Map(stockRows.map((row) => [row._id.toString(), row]));
+
+    return products.map((product) => {
+        const stock = stockById.get(product.uaeMainStock);
+
+        if (!stock) {
+            throw new Error("UAE_MAIN_STOCK_NOT_FOUND");
         }
-
-        validateNonNegativeAmount(product.unitPrice, "UNIT_PRICE");
-
-        const amount = Number(
-            (product.qty * product.unitPrice).toFixed(2),
-        );
 
         return {
-            uaeStoreStockTransfer: new mongoose.Types.ObjectId(
-                product.uaeStoreStockTransfer,
-            ),
-            packingStyle: new mongoose.Types.ObjectId(product.packingStyle),
-            styleNo: product.styleNo.trim(),
-            productName: product.productName.trim(),
+            uaeMainStock: stock._id,
+            styleNo: stock.styleNo,
+            productName: stock.productName,
             qty: product.qty,
             unitPrice: product.unitPrice,
-            amount,
+            costAED: stock.costAED,
+            amount: round2(product.qty * product.unitPrice),
         };
     });
+};
 
-    const totalQty = products.reduce(
-        (total, product) => total + product.qty,
-        0,
-    );
+const groupQty = (lines: StockLine[]) => {
+    const qty = new Map<string, number>();
 
-    const invoiceTotal = Number(
-        products
-            .reduce((total, product) => total + product.amount, 0)
-            .toFixed(2),
-    );
-
-    const returnAmount = data.returnAmount ?? 0;
-    const receivedAmount = data.receivedAmount ?? 0;
-
-    validateNonNegativeAmount(returnAmount, "RETURN_AMOUNT");
-    validateNonNegativeAmount(receivedAmount, "RECEIVED_AMOUNT");
-
-    if (returnAmount > invoiceTotal) {
-        throw new Error("RETURN_AMOUNT_EXCEEDS_INVOICE_TOTAL");
+    for (const line of lines) {
+        const key = String(line.uaeMainStock);
+        qty.set(key, (qty.get(key) ?? 0) + line.qty);
     }
 
-    const netAmount = Number((invoiceTotal - returnAmount).toFixed(2));
+    return qty;
+};
 
-    if (receivedAmount > netAmount) {
-        throw new Error("RECEIVED_AMOUNT_EXCEEDS_NET_AMOUNT");
+const restoreStock = async (lines: StockLine[]) => {
+    for (const [id, qty] of groupQty(lines)) {
+        await UAEMainStockModel.updateOne({ _id: id }, { $inc: { qty } });
     }
+};
 
-    const balanceAmount = Number(
-        (netAmount - receivedAmount).toFixed(2),
+/** Deducts qty from UAE_MAIN STORE; all-or-nothing. */
+const deductStock = async (lines: StockLine[]) => {
+    const deducted: StockLine[] = [];
+
+    for (const [id, qty] of groupQty(lines)) {
+        const result = await UAEMainStockModel.updateOne(
+            { _id: id, isDeleted: false, qty: { $gte: qty } },
+            { $inc: { qty: -qty } },
+        );
+
+        if (result.modifiedCount !== 1) {
+            await restoreStock(deducted);
+            throw new Error("INSUFFICIENT_UAE_STOCK");
+        }
+
+        deducted.push({ uaeMainStock: id, qty });
+    }
+};
+
+const toStockLines = (products: { uaeMainStock: unknown; qty: number }[]) =>
+    products.map((product) => ({
+        uaeMainStock: String(product.uaeMainStock),
+        qty: product.qty,
+    }));
+
+const hasReceiptsOrReturns = async (billingId: mongoose.Types.ObjectId) => {
+    const [receipt, returned] = await Promise.all([
+        ReceiptEntryModel.exists({ invoice: billingId, isDeleted: false }),
+        UAEStoreStockTransferModel.exists({ invoice: billingId, isDeleted: false }),
+    ]);
+
+    return Boolean(receipt || returned);
+};
+
+/**
+ * Recomputes the derived amounts of an invoice:
+ * net = invoice total - returns, balance = net - receipts.
+ */
+export const refreshBillingTotals = async (
+    billingId: mongoose.Types.ObjectId | string,
+) => {
+    const id = new mongoose.Types.ObjectId(String(billingId));
+
+    const [billing, returns, receipts] = await Promise.all([
+        BillingModel.findById(id),
+        UAEStoreStockTransferModel.aggregate([
+            { $match: { invoice: id, isDeleted: false } },
+            { $unwind: "$products" },
+            { $group: { _id: null, total: { $sum: "$products.returnValue" } } },
+        ]),
+        ReceiptEntryModel.aggregate([
+            { $match: { invoice: id, isDeleted: false } },
+            { $group: { _id: null, total: { $sum: "$receivedAmount" } } },
+        ]),
+    ]);
+
+    if (!billing) return null;
+
+    billing.returnAmount = round2(returns[0]?.total ?? 0);
+    billing.receivedAmount = round2(receipts[0]?.total ?? 0);
+    billing.netAmount = round2(
+        Math.max(0, billing.invoiceTotal - billing.returnAmount),
+    );
+    billing.balanceAmount = round2(
+        Math.max(0, billing.netAmount - billing.receivedAmount),
     );
 
-    const date = data.date ? new Date(data.date) : new Date();
+    return billing.save();
+};
 
-    if (Number.isNaN(date.getTime())) {
-        throw new Error("BILLING_DATE_INVALID");
-    }
+const computeTotals = (products: BillingProduct[]) => {
+    const invoiceTotal = round2(
+        products.reduce((total, product) => total + product.amount, 0),
+    );
 
     return {
-        customer: new mongoose.Types.ObjectId(data.customer),
-        date,
-        products,
-        totalQty,
+        totalQty: products.reduce((total, product) => total + product.qty, 0),
         invoiceTotal,
-        returnAmount,
-        netAmount,
-        receivedAmount,
-        balanceAmount,
     };
 };
 
+export const createBillingService = async (
+    data: BillingInput,
+    createdBy?: mongoose.Types.ObjectId,
+) => {
+    const customer = await validateCustomer(data.customer);
+    const date = parseDate(data.date);
+    const products = await prepareProducts(data.products);
+    const totals = computeTotals(products);
 
-export const createBillingService = async (data: BillingInput) => {
-    const billingData = prepareBillingData(data);
-    const invoiceNo = await generateInvoiceNo();
+    await deductStock(toStockLines(products));
 
-    return createBilling({
-        ...billingData,
-        invoiceNo,
-    });
+    try {
+        return await createBilling({
+            invoiceNo: await generateInvoiceNo(),
+            customer,
+            date,
+            products,
+            ...totals,
+            returnAmount: 0,
+            netAmount: totals.invoiceTotal,
+            receivedAmount: 0,
+            balanceAmount: totals.invoiceTotal,
+            createdBy,
+        });
+    } catch (error) {
+        await restoreStock(toStockLines(products));
+        throw error;
+    }
 };
+
 export const getAllBillingsService = async (
     page: number,
     limit: number,
@@ -186,42 +272,70 @@ export const getBillingByIdService = async (id: string) => {
     return billing;
 };
 
+/**
+ * Date and customer can always change. Products can only change while the
+ * invoice has no receipts or returns; stock is restored and re-deducted.
+ */
 export const updateBillingService = async (
     id: string,
     data: Partial<BillingInput>,
+    updatedBy?: mongoose.Types.ObjectId,
 ) => {
     if (!isValidObjectId(id)) {
         throw new Error("BILLING_ID_INVALID");
     }
 
-    const existingBilling = await findBillingById(id);
+    const existing = await BillingModel.findOne({ _id: id, isDeleted: false });
 
-    if (!existingBilling) {
+    if (!existing) {
         throw new Error("BILLING_NOT_FOUND");
     }
 
-    const mergedData: BillingInput = {
-        customer:
-            data.customer ?? String(existingBilling.customer?._id ?? existingBilling.customer),
-        date: data.date ?? existingBilling.date,
-        products:
-            data.products ??
-            existingBilling.products.map((product: { uaeStoreStockTransfer: any; packingStyle: any; styleNo: any; productName: any; qty: any; unitPrice: any; }) => ({
-                uaeStoreStockTransfer: String(product.uaeStoreStockTransfer),
-                packingStyle: String(product.packingStyle),
-                styleNo: product.styleNo,
-                productName: product.productName,
-                qty: product.qty,
-                unitPrice: product.unitPrice,
-            })),
-        returnAmount: data.returnAmount ?? existingBilling.returnAmount,
-        receivedAmount:
-            data.receivedAmount ?? existingBilling.receivedAmount,
+    const updates: Record<string, unknown> = {
+        updatedBy,
+        userUpdatedDate: new Date(),
     };
 
-    const billingData = prepareBillingData(mergedData);
+    if (data.customer !== undefined) {
+        updates.customer = await validateCustomer(data.customer);
+    }
 
-    const updatedBilling = await updateBillingById(id, billingData);
+    if (data.date !== undefined) {
+        updates.date = parseDate(data.date);
+    }
+
+    if (data.products !== undefined) {
+        if (await hasReceiptsOrReturns(existing._id)) {
+            throw new Error("BILLING_HAS_RECEIPTS_OR_RETURNS");
+        }
+
+        const oldLines = toStockLines(existing.products);
+
+        await restoreStock(oldLines);
+
+        let products: BillingProduct[];
+
+        try {
+            products = await prepareProducts(data.products);
+            await deductStock(toStockLines(products));
+        } catch (error) {
+            await deductStock(oldLines);
+            throw error;
+        }
+
+        const totals = computeTotals(products);
+
+        Object.assign(updates, {
+            products,
+            ...totals,
+            returnAmount: 0,
+            netAmount: totals.invoiceTotal,
+            receivedAmount: 0,
+            balanceAmount: totals.invoiceTotal,
+        });
+    }
+
+    const updatedBilling = await updateBillingById(id, updates);
 
     if (!updatedBilling) {
         throw new Error("BILLING_NOT_FOUND");
@@ -230,16 +344,32 @@ export const updateBillingService = async (
     return updatedBilling;
 };
 
-export const deleteBillingService = async (id: string) => {
+export const deleteBillingService = async (
+    id: string,
+    deletedBy?: mongoose.Types.ObjectId,
+) => {
     if (!isValidObjectId(id)) {
         throw new Error("BILLING_ID_INVALID");
     }
 
-    const billing = await softDeleteBillingById(id);
+    const existing = await BillingModel.findOne({ _id: id, isDeleted: false });
+
+    if (!existing) {
+        throw new Error("BILLING_NOT_FOUND");
+    }
+
+    if (await hasReceiptsOrReturns(existing._id)) {
+        throw new Error("BILLING_HAS_RECEIPTS_OR_RETURNS");
+    }
+
+    const billing = await softDeleteBillingById(id, deletedBy);
 
     if (!billing) {
         throw new Error("BILLING_NOT_FOUND");
     }
+
+    // Billed qty goes back to UAE_MAIN STORE
+    await restoreStock(toStockLines(existing.products));
 
     return billing;
 };

@@ -6,6 +6,7 @@ import * as paymentEntryService from "./paymentEntryService";
 import { getPaginationParams } from "../../utils/pagination";
 import { statusCode } from "../../constants/statusCode";
 import { message } from "../../constants/responseMessage";
+import { getErrorStatus, sendError } from "../../utils/errorStatus";
 
 const getPaymentEntryId = (
     req: RequestWithAuthData,
@@ -59,6 +60,12 @@ const getErrorResponse = (error: unknown) => {
 
         if (errorMap[error.message]) {
             return errorMap[error.message];
+        }
+
+        const status = getErrorStatus(error);
+
+        if (status !== statusCode.INTERNAL_SERVER_ERROR) {
+            return { status, message: error.message };
         }
     }
 
@@ -118,9 +125,16 @@ export const getAllPaymentEntries = async (
 ): Promise<Response> => {
     try {
         const { page, limit } = getPaginationParams(req.query);
+        const status =
+            req.query.status === "paid" || req.query.status === "outstanding"
+                ? req.query.status
+                : "all";
+        const sortBy = req.query.sortBy === "vendor" ? "vendor" : "date";
         const result = await paymentEntryService.getAllPaymentEntries(
             page,
             limit,
+            status,
+            sortBy,
         );
 
         return res.status(statusCode.OK).json({
@@ -284,5 +298,22 @@ export const deletePaymentEntry = async (
             success: false,
             message: result.message,
         });
+    }
+};
+
+export const getPayableInvoices = async (
+    _req: RequestWithAuthData,
+    res: Response,
+): Promise<Response> => {
+    try {
+        const data = await paymentEntryService.getPayableInvoices();
+
+        return res.status(statusCode.OK).json({
+            success: true,
+            message: "PAYABLE_PURCHASE_INVOICES_FETCHED",
+            data,
+        });
+    } catch (error) {
+        return sendError(res, error, "GET_PAYABLE_INVOICES_ERROR");
     }
 };

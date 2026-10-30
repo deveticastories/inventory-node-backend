@@ -5,6 +5,9 @@ import { BaseDocument, BaseSchema } from "./baseModel";
 export interface ReceiptEntry extends BaseDocument {
     receiptNo: string;
     invoice: mongoose.Types.ObjectId;
+    customer: mongoose.Types.ObjectId;
+    receiptDate: Date;
+    receivableAmount: number;
     receivedAmount: number;
     balanceAmount: number;
 }
@@ -24,6 +27,22 @@ const ReceiptEntrySchema = new Schema<ReceiptEntryDocument>(
             ref: "Billing",
             required: true,
             index: true,
+        },
+        customer: {
+            type: Schema.Types.ObjectId,
+            ref: "Customer",
+            index: true,
+        },
+        receiptDate: {
+            type: Date,
+            required: true,
+            default: Date.now,
+        },
+        receivableAmount: {
+            type: Number,
+            required: true,
+            min: 0,
+            default: 0,
         },
         receivedAmount: {
             type: Number,

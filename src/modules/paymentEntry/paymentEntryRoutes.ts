@@ -145,6 +145,17 @@ router.post("/", paymentEntryController.createPaymentEntry);
  *         schema:
  *           type: integer
  *           default: 10
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [all, paid, outstanding]
+ *         description: Filter by the purchase invoice's current balance
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [date, vendor]
  *     responses:
  *       200:
  *         description: Payment entries fetched successfully with aggregated purchase and vendor details
@@ -152,6 +163,23 @@ router.post("/", paymentEntryController.createPaymentEntry);
  *         description: Unauthorized
  */
 router.get("/", paymentEntryController.getAllPaymentEntries);
+
+/**
+ * @swagger
+ * /api/payment-entries/payable-invoices:
+ *   get:
+ *     summary: QC-approved purchase invoices with a balance (for the new payment voucher dropdown)
+ *     tags: [Payment Entries]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Payable invoices with payable, paid and balance amounts
+ */
+router.get(
+    "/payable-invoices",
+    paymentEntryController.getPayableInvoices,
+);
 
 /**
  * @swagger

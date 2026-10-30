@@ -199,3 +199,33 @@ export const deleteVendor = async (
         });
     }
 };
+
+export const getVendorDetails = async (
+    req: RequestWithAuthData,
+    res: Response,
+): Promise<Response> => {
+    const id = getVendorId(req, res);
+    if (!id) return res;
+
+    try {
+        const details = await vendorService.getVendorDetails(id);
+
+        if (!details) {
+            return res.status(statusCode.NOT_FOUND).json({
+                success: false,
+                message: message.VENDOR_NOT_FOUND,
+            });
+        }
+
+        return res.status(statusCode.OK).json({
+            success: true,
+            message: message.VENDOR_FETCHED,
+            data: details,
+        });
+    } catch (error) {
+        return res.status(statusCode.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: error instanceof Error ? error.message : "Failed to fetch vendor",
+        });
+    }
+};

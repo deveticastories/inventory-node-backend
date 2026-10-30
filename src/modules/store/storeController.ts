@@ -52,7 +52,7 @@ export const createStore = async (
     const status =
       errorMessage.includes("already exists")
         ? statusCode.CONFLICT
-        : errorMessage === "Assigned user not found"
+        : errorMessage.startsWith("Assigned user not found")
           ? statusCode.BAD_REQUEST
           : statusCode.BAD_REQUEST;
 
@@ -159,7 +159,7 @@ export const editStore = async (
     const status =
       errorMessage.includes("already exists")
         ? statusCode.CONFLICT
-        : errorMessage === "Assigned user not found"
+        : errorMessage.startsWith("Assigned user not found")
           ? statusCode.BAD_REQUEST
           : statusCode.BAD_REQUEST;
 

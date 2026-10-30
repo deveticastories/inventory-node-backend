@@ -1,5 +1,7 @@
 
 import type { Request, Response } from "express";
+import type { RequestWithAuthData } from "../../@types/express";
+import { getErrorStatus as getCodeStatus } from "../../utils/errorStatus";
 import * as billingService from "./billingService";
 import logger from "../../utils/logger";
 
@@ -29,7 +31,7 @@ const getErrorStatus = (error: unknown): number => {
         return 400;
     }
 
-    return 500;
+    return getCodeStatus(error);
 };
 
 const handleError = (
@@ -53,7 +55,10 @@ export const createBillingController = async (
     res: Response,
 ) => {
     try {
-        const billing = await billingService.createBillingService(req.body);
+        const billing = await billingService.createBillingService(
+            req.body,
+            (req as RequestWithAuthData).userId,
+        );
 
         return res.status(201).json({
             success: true,
@@ -134,6 +139,7 @@ export const updateBillingController = async (
         const billing = await billingService.updateBillingService(
             String(req.params.id),
             req.body,
+            (req as RequestWithAuthData).userId,
         );
 
         return res.status(200).json({
@@ -153,6 +159,7 @@ export const deleteBillingController = async (
     try {
         const billing = await billingService.deleteBillingService(
             String(req.params.id),
+            (req as RequestWithAuthData).userId,
         );
 
         return res.status(200).json({

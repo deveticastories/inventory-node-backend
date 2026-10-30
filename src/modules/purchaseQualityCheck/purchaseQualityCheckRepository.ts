@@ -35,7 +35,7 @@ export const findQualityCheckById = (id: string) => {
         .populate({
             path: "checkedBy",
             model: UserModel,
-            select: "firstName lastName email",
+            select: "staffName employeeId email",
         })
         .lean();
 };
@@ -97,7 +97,7 @@ export const findAllQualityChecks = () => {
         .populate({
             path: "checkedBy",
             model: UserModel,
-            select: "firstName lastName email",
+            select: "staffName employeeId email",
         })
         .sort({
             createdAt: -1,

@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import PaymentEntryModel from "../../models/paymentEntryModel";
 import PurchaseEntryModel from "../../models/purchaseEntryModel";
 import VendorModel from "../../models/vendorModel";
+import PurchaseQualityCheckModel from "../../models/purchaseQualityCheckModel";
 import { getPaginationMeta } from "../../utils/pagination";
 
 const getPaymentEntryPipeline = () => [
@@ -96,28 +97,131 @@ export const findPaymentEntryByPurchaseEntry = async (
     ]);
 };
 
+// Current position of the purchase invoice: QC payable, total paid, balance
+const purchaseInvoiceBalanceStages = () => [
+    {
+        $lookup: {
+            from: PurchaseQualityCheckModel.collection.name,
+            let: { purchaseId: "$purchaseInvoice._id" },
+            pipeline: [
+                {
+                    $match: {
+                        $expr: { $eq: ["$purchaseEntry", "$$purchaseId"] },
+                        isDeleted: false,
+                    },
+                },
+                { $project: { payableAfterQC: 1 } },
+            ],
+            as: "qualityCheck",
+        },
+    },
+    {
+        $lookup: {
+            from: PaymentEntryModel.collection.name,
+            let: { purchaseId: "$purchaseInvoice._id" },
+            pipeline: [
+                {
+                    $match: {
+                        $expr: { $eq: ["$purchaseInvoice", "$$purchaseId"] },
+                        isDeleted: false,
+                    },
+                },
+                { $group: { _id: null, totalPaid: { $sum: "$paidAmount" } } },
+            ],
+            as: "paidSummary",
+        },
+    },
+    {
+        $set: {
+            invoicePayable: {
+                $ifNull: [{ $first: "$qualityCheck.payableAfterQC" }, 0],
+            },
+            invoicePaid: { $ifNull: [{ $first: "$paidSummary.totalPaid" }, 0] },
+        },
+    },
+    {
+        $set: {
+            invoiceBalance: {
+                $max: [0, { $subtract: ["$invoicePayable", "$invoicePaid"] }],
+            },
+        },
+    },
+    { $unset: ["qualityCheck", "paidSummary"] },
+];
+
 export const getAllPaymentEntries = async (
     page: number,
     limit: number,
+    status: "all" | "paid" | "outstanding" = "all",
+    sortBy: "date" | "vendor" = "date",
 ) => {
-    const filter = { isDeleted: false };
     const skip = (page - 1) * limit;
+    const statusMatch =
+        status === "paid"
+            ? [{ $match: { invoiceBalance: { $lte: 0.5 } } }]
+            : status === "outstanding"
+                ? [{ $match: { invoiceBalance: { $gt: 0.5 } } }]
+                : [];
+    const sort: Record<string, 1 | -1> =
+        sortBy === "vendor"
+            ? { "purchaseInvoice.vendor.vendorName": 1, createdAt: -1 }
+            : { paymentDate: -1, createdAt: -1 };
 
-    const [data, totalRecords] = await Promise.all([
-        PaymentEntryModel.aggregate([
-            { $match: filter },
-            { $sort: { createdAt: -1 } },
-            { $skip: skip },
-            { $limit: limit },
-            ...getPaymentEntryPipeline(),
-        ]),
-        PaymentEntryModel.countDocuments(filter),
+    const result = await PaymentEntryModel.aggregate([
+        { $match: { isDeleted: false } },
+        ...getPaymentEntryPipeline(),
+        ...purchaseInvoiceBalanceStages(),
+        ...statusMatch,
+        { $sort: sort },
+        {
+            $facet: {
+                data: [{ $skip: skip }, { $limit: limit }],
+                totalRecords: [{ $count: "count" }],
+            },
+        },
     ]);
 
+    const totalRecords = result[0]?.totalRecords[0]?.count ?? 0;
+
     return {
-        data,
+        data: result[0]?.data ?? [],
         pagination: getPaginationMeta(page, limit, totalRecords),
     };
+};
+
+/** QC-approved purchase invoices with an outstanding balance. */
+export const findPayableInvoices = async () => {
+    const rows = await PurchaseEntryModel.aggregate([
+        { $match: { isDeleted: false, qcStatus: "Done" } },
+        { $project: { purchaseInvoice: "$$ROOT" } },
+        {
+            $lookup: {
+                from: VendorModel.collection.name,
+                localField: "purchaseInvoice.vendor",
+                foreignField: "_id",
+                as: "purchaseInvoice.vendor",
+            },
+        },
+        {
+            $unwind: {
+                path: "$purchaseInvoice.vendor",
+                preserveNullAndEmptyArrays: true,
+            },
+        },
+        ...purchaseInvoiceBalanceStages(),
+        { $match: { invoiceBalance: { $gt: 0.5 } } },
+        { $sort: { "purchaseInvoice.purchaseDate": -1 } },
+    ]);
+
+    return rows.map((row) => ({
+        _id: row.purchaseInvoice._id,
+        invoiceNo: row.purchaseInvoice.invoiceNo,
+        purchaseDate: row.purchaseInvoice.purchaseDate,
+        vendor: row.purchaseInvoice.vendor,
+        payableAmount: row.invoicePayable,
+        paidAmount: row.invoicePaid,
+        balanceAmount: row.invoiceBalance,
+    }));
 };
 
 export const updatePaymentEntryById = async (

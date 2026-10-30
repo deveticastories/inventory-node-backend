@@ -36,20 +36,7 @@ export const findAllBillings = async (
     const [data, totalRecords] = await Promise.all([
         BillingModel.find(filter)
             .populate("customer")
-            .populate({
-                path: "products.uaeStoreStockTransfer",
-                populate: [
-                    {
-                        path: "packingList",
-                    },
-                    {
-                        path: "fromStore",
-                    },
-                    {
-                        path: "toStore",
-                    },
-                ],
-            })
+            .populate("products.uaeMainStock")
             .sort({ date: -1, createdAt: -1 })
             .skip(skip)
             .limit(limit)
@@ -74,20 +61,7 @@ export const findBillingById = async (id: string) => {
         isDeleted: false,
     })
         .populate("customer")
-        .populate({
-            path: "products.uaeStoreStockTransfer",
-            populate: [
-                {
-                    path: "packingList",
-                },
-                {
-                    path: "fromStore",
-                },
-                {
-                    path: "toStore",
-                },
-            ],
-        });
+        .populate("products.uaeMainStock");
 };
 
 export const updateBillingById = async (
@@ -112,23 +86,13 @@ export const updateBillingById = async (
         },
     )
         .populate("customer")
-        .populate({
-            path: "products.uaeStoreStockTransfer",
-            populate: [
-                {
-                    path: "packingList",
-                },
-                {
-                    path: "fromStore",
-                },
-                {
-                    path: "toStore",
-                },
-            ],
-        });
+        .populate("products.uaeMainStock");
 };
 
-export const softDeleteBillingById = async (id: string) => {
+export const softDeleteBillingById = async (
+    id: string,
+    deletedBy?: mongoose.Types.ObjectId,
+) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
         return null;
     }
@@ -142,6 +106,7 @@ export const softDeleteBillingById = async (id: string) => {
             $set: {
                 isDeleted: true,
                 deletedAt: new Date(),
+                deletedBy,
             },
         },
         {

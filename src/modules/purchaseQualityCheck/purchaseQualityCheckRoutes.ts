@@ -4,6 +4,7 @@ import {
     createOrUpdateQualityCheckController,
     getAllQualityChecksController,
     getQualityCheckByIdController,
+    getQualityCheckByPurchaseEntryController,
 } from "./purchaseQualityCheckController";
 
 const router = Router();
@@ -94,6 +95,32 @@ router.get(
     "/",
     verifyToken,
     getAllQualityChecksController,
+);
+
+/**
+ * @swagger
+ * /api/purchase-quality-checks/purchase-entry/{purchaseEntryId}:
+ *   get:
+ *     summary: Purchase data after QC (approved / damaged products and payable) for an invoice
+ *     tags: [Purchase Quality Checks]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: purchaseEntryId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Purchase quality check fetched successfully
+ *       404:
+ *         description: Quality check is pending for this invoice
+ */
+router.get(
+    "/purchase-entry/:purchaseEntryId",
+    verifyToken,
+    getQualityCheckByPurchaseEntryController,
 );
 
 /**

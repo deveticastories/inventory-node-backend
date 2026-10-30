@@ -1,223 +1,137 @@
-import type { Request, Response } from "express";
+import type { Response } from "express";
+import type { RequestWithAuthData } from "../../@types/express";
 import * as uaeStoreStockTransferService from "./uaeStoreStockTransferService";
-import { message } from "../../constants/responseMessage";
 import { statusCode } from "../../constants/statusCode";
-import logger from "../../utils/logger";
+import { sendError } from "../../utils/errorStatus";
 
-const errorResponses: Record<
-    string,
-    { status: number; message: string }
-> = {
-    PACKING_LIST_ID_INVALID: {
-        status: statusCode.BAD_REQUEST,
-        message: message.PACKING_LIST_ID_INVALID,
-    },
-    PACKING_LIST_NOT_FOUND: {
-        status: statusCode.NOT_FOUND,
-        message: message.PACKING_LIST_NOT_FOUND,
-    },
-    FROM_STORE_ID_INVALID: {
-        status: statusCode.BAD_REQUEST,
-        message: message.FROM_STORE_ID_INVALID,
-    },
-    TO_STORE_ID_INVALID: {
-        status: statusCode.BAD_REQUEST,
-        message: message.TO_STORE_ID_INVALID,
-    },
-    FROM_STORE_TO_STORE_SAME: {
-        status: statusCode.BAD_REQUEST,
-        message: message.FROM_STORE_TO_STORE_SAME,
-    },
-    FROM_STORE_NOT_FOUND: {
-        status: statusCode.NOT_FOUND,
-        message: message.FROM_STORE_NOT_FOUND,
-    },
-    TO_STORE_NOT_FOUND: {
-        status: statusCode.NOT_FOUND,
-        message: message.TO_STORE_NOT_FOUND,
-    },
-    RETURN_TYPE_INVALID: {
-        status: statusCode.BAD_REQUEST,
-        message: message.RETURN_TYPE_INVALID,
-    },
-    RETURN_REASON_INVALID: {
-        status: statusCode.BAD_REQUEST,
-        message: message.RETURN_REASON_INVALID,
-    },
-    INVOICE_VALUE_INVALID: {
-        status: statusCode.BAD_REQUEST,
-        message: message.INVOICE_VALUE_INVALID,
-    },
-    UPDATED_INVOICE_VALUE_INVALID: {
-        status: statusCode.BAD_REQUEST,
-        message: message.UPDATED_INVOICE_VALUE_INVALID,
-    },
-    IN_STORE_INVALID: {
-        status: statusCode.BAD_REQUEST,
-        message: message.IN_STORE_INVALID,
-    },
-    RETURN_DATE_INVALID: {
-        status: statusCode.BAD_REQUEST,
-        message: message.RETURN_DATE_INVALID,
-    },
-    RETURN_PRODUCTS_REQUIRED: {
-        status: statusCode.BAD_REQUEST,
-        message: message.RETURN_PRODUCTS_REQUIRED,
-    },
-    RETURN_PRODUCT_INVALID: {
-        status: statusCode.BAD_REQUEST,
-        message: message.RETURN_PRODUCT_INVALID,
-    },
-    RETURN_PRODUCT_PACKING_LIST_MISMATCH: {
-        status: statusCode.BAD_REQUEST,
-        message: message.RETURN_PRODUCT_PACKING_LIST_MISMATCH,
-    },
-    PACKING_STYLE_NOT_FOUND: {
-        status: statusCode.NOT_FOUND,
-        message: message.PACKING_STYLE_NOT_FOUND,
-    },
-    RETURNED_QTY_INVALID: {
-        status: statusCode.BAD_REQUEST,
-        message: message.RETURNED_QTY_INVALID,
-    },
-    UAE_RETURN_ID_INVALID: {
-        status: statusCode.BAD_REQUEST,
-        message: message.UAE_RETURN_ID_INVALID,
-    },
-    UAE_RETURN_NOT_FOUND: {
-        status: statusCode.NOT_FOUND,
-        message: message.UAE_RETURN_NOT_FOUND,
-    },
-    TO_STORE_REQUIRED: {
-        status: statusCode.BAD_REQUEST,
-        message: message.TO_STORE_ID_INVALID,
-    },
+const queryString = (value: unknown) =>
+    typeof value === "string" && value.trim() ? value : undefined;
+
+export const getUAEMainStockController = async (
+    req: RequestWithAuthData,
+    res: Response,
+) => {
+    try {
+        const result = await uaeStoreStockTransferService.getUAEMainStockService(
+            queryString(req.query.search),
+            queryString(req.query.sortBy),
+        );
+
+        return res.status(statusCode.OK).json({
+            success: true,
+            message: "UAE_MAIN_STOCK_FETCHED",
+            ...result,
+        });
+    } catch (error) {
+        return sendError(res, error, "GET_UAE_MAIN_STOCK_ERROR");
+    }
 };
 
-const handleError = (error: unknown, res: Response) => {
-    const errorCode =
-        error instanceof Error
-            ? error.message
-            : "INTERNAL_SERVER_ERROR";
+export const getReturnStoreStockController = async (
+    req: RequestWithAuthData,
+    res: Response,
+) => {
+    try {
+        const result =
+            await uaeStoreStockTransferService.getReturnStoreStockService(
+                queryString(req.query.search),
+                queryString(req.query.sortBy),
+            );
 
-    if (
-        errorCode === "Page and limit must be positive integers"
-    ) {
-        return res.status(statusCode.BAD_REQUEST).json({
-            success: false,
-            message: message.PAGINATION_INVALID,
+        return res.status(statusCode.OK).json({
+            success: true,
+            message: "UAE_RETURN_STOCK_FETCHED",
+            ...result,
         });
+    } catch (error) {
+        return sendError(res, error, "GET_UAE_RETURN_STOCK_ERROR");
     }
+};
 
-    const knownError = errorResponses[errorCode];
+export const getReturnableProductsController = async (
+    req: RequestWithAuthData,
+    res: Response,
+) => {
+    try {
+        const data =
+            await uaeStoreStockTransferService.getReturnableProductsService(
+                String(req.params.invoiceId),
+            );
 
-    if (knownError) {
-        return res.status(knownError.status).json({
-            success: false,
-            message: knownError.message,
+        return res.status(statusCode.OK).json({
+            success: true,
+            message: "UAE_RETURNABLE_PRODUCTS_FETCHED",
+            data,
         });
+    } catch (error) {
+        return sendError(res, error, "GET_RETURNABLE_PRODUCTS_ERROR");
     }
+};
 
-    logger.error("UAE Store Stock Transfer error", { error });
+export const moveReturnToMainStoreController = async (
+    req: RequestWithAuthData,
+    res: Response,
+) => {
+    try {
+        const data =
+            await uaeStoreStockTransferService.moveReturnToMainStoreService(
+                req.body ?? {},
+                req.userId,
+            );
 
-    return res.status(statusCode.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: message.INTERNAL_SERVER_ERROR,
-    });
+        return res.status(statusCode.OK).json({
+            success: true,
+            message: "UAE_RETURN_MOVED_TO_MAIN",
+            data,
+        });
+    } catch (error) {
+        return sendError(res, error, "MOVE_RETURN_TO_MAIN_ERROR");
+    }
 };
 
 export const createUAEStoreStockTransferController = async (
-    req: Request,
+    req: RequestWithAuthData,
     res: Response,
 ) => {
     try {
         const data =
             await uaeStoreStockTransferService.createUAEStoreStockTransferService(
-                req.body,
+                req.body ?? {},
+                req.userId,
             );
 
         return res.status(statusCode.CREATED).json({
             success: true,
-            message: message.UAE_RETURN_CREATED,
+            message: "UAE_RETURN_CREATED",
             data,
         });
     } catch (error) {
-        return handleError(error, res);
+        return sendError(res, error, "CREATE_UAE_RETURN_ERROR");
     }
 };
 
 export const getAllUAEStoreStockTransfersController = async (
-    req: Request,
+    req: RequestWithAuthData,
     res: Response,
 ) => {
     try {
         const result =
             await uaeStoreStockTransferService.getAllUAEStoreStockTransfersService(
                 req.query,
-                typeof req.query.packingList === "string"
-                    ? req.query.packingList
-                    : undefined,
-                typeof req.query.fromStore === "string"
-                    ? req.query.fromStore
-                    : undefined,
-                typeof req.query.toStore === "string"
-                    ? req.query.toStore
-                    : undefined,
+                queryString(req.query.invoice),
             );
 
-        return res.status(statusCode.OK).json(result);
+        return res.status(statusCode.OK).json({
+            ...result,
+            message: "UAE_RETURNS_FETCHED",
+        });
     } catch (error) {
-        return handleError(error, res);
-    }
-};
-
-export const getAvailablePackingListsForFromStoreController = async (
-    req: Request,
-    res: Response,
-) => {
-    try {
-        const result =
-            await uaeStoreStockTransferService.getAvailablePackingListsForFromStoreService(
-                req.query,
-            );
-
-        return res.status(statusCode.OK).json(result);
-    } catch (error) {
-        return handleError(error, res);
-    }
-};
-
-export const getReturnedPackingListsForToStoreController = async (
-    req: Request,
-    res: Response,
-) => {
-    try {
-        const toStore =
-            typeof req.query.toStore === "string"
-                ? req.query.toStore
-                : "";
-
-        if (!toStore) {
-            return res.status(statusCode.BAD_REQUEST).json({
-                success: false,
-                message: message.TO_STORE_ID_INVALID,
-            });
-        }
-
-        const result =
-            await uaeStoreStockTransferService.getReturnedPackingListsForToStoreService(
-                toStore,
-                req.query,
-            );
-
-        return res.status(statusCode.OK).json(result);
-    } catch (error) {
-        return handleError(error, res);
+        return sendError(res, error, "GET_UAE_RETURNS_ERROR");
     }
 };
 
 export const getUAEStoreStockTransferByIdController = async (
-    req: Request,
+    req: RequestWithAuthData,
     res: Response,
 ) => {
     try {
@@ -228,49 +142,31 @@ export const getUAEStoreStockTransferByIdController = async (
 
         return res.status(statusCode.OK).json({
             success: true,
-            message: message.UAE_RETURN_FETCHED,
+            message: "UAE_RETURN_FETCHED",
             data,
         });
     } catch (error) {
-        return handleError(error, res);
-    }
-};
-
-export const updateUAEStoreStockTransferController = async (
-    req: Request,
-    res: Response,
-) => {
-    try {
-        const data =
-            await uaeStoreStockTransferService.updateUAEStoreStockTransferService(
-                String(req.params.id),
-                req.body,
-            );
-
-        return res.status(statusCode.OK).json({
-            success: true,
-            message: message.UAE_RETURN_UPDATED,
-            data,
-        });
-    } catch (error) {
-        return handleError(error, res);
+        return sendError(res, error, "GET_UAE_RETURN_ERROR");
     }
 };
 
 export const deleteUAEStoreStockTransferController = async (
-    req: Request,
+    req: RequestWithAuthData,
     res: Response,
 ) => {
     try {
-        await uaeStoreStockTransferService.deleteUAEStoreStockTransferService(
-            String(req.params.id),
-        );
+        const data =
+            await uaeStoreStockTransferService.deleteUAEStoreStockTransferService(
+                String(req.params.id),
+                req.userId,
+            );
 
         return res.status(statusCode.OK).json({
             success: true,
-            message: message.UAE_RETURN_DELETED,
+            message: "UAE_RETURN_DELETED",
+            data,
         });
     } catch (error) {
-        return handleError(error, res);
+        return sendError(res, error, "DELETE_UAE_RETURN_ERROR");
     }
 };

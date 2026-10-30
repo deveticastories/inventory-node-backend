@@ -239,3 +239,40 @@ export const deleteCustomer = async (
         });
     }
 };
+export const getCustomerStatement = async (
+    req: RequestWithAuthData,
+    res: Response,
+): Promise<Response> => {
+    const id = getCustomerId(req, res);
+
+    if (!id) return res;
+
+    try {
+        const status =
+            req.query.status === "paid" || req.query.status === "outstanding"
+                ? req.query.status
+                : "all";
+        const statement = await customerService.getCustomerStatementService(
+            id,
+            status,
+        );
+
+        if (!statement) {
+            return res.status(statusCode.NOT_FOUND).json({
+                success: false,
+                message: message.CUSTOMER_NOT_FOUND,
+            });
+        }
+
+        return res.status(statusCode.OK).json({
+            success: true,
+            message: "CUSTOMER_STATEMENT_FETCHED",
+            data: statement,
+        });
+    } catch {
+        return res.status(statusCode.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: message.INTERNAL_SERVER_ERROR,
+        });
+    }
+};

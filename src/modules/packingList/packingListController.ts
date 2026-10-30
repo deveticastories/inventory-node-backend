@@ -7,6 +7,7 @@ import { getPaginationParams } from "../../utils/pagination";
 import { statusCode } from "../../constants/statusCode";
 import { message } from "../../constants/responseMessage";
 import logger from "../../utils/logger";
+import { getErrorStatus, sendError } from "../../utils/errorStatus";
 
 const PACKING_LIST_STATUSES: readonly PackingListStatus[] = [
     "Pending",
@@ -82,6 +83,19 @@ const getErrorResponse = (error: unknown) => {
                 message: message.PACKING_LIST_VALIDATION_FAILED,
             };
         }
+    }
+
+    // Business rule codes thrown by the service (stock, style no, expenses...)
+    if (
+        error instanceof Error &&
+        getErrorStatus(error) !== statusCode.INTERNAL_SERVER_ERROR
+    ) {
+        return {
+            status: getErrorStatus(error),
+            message:
+                (message as Record<string, string>)[error.message] ??
+                error.message,
+        };
     }
 
     if (
@@ -315,77 +329,89 @@ export const deletePackingList = async (
         });
     }
 };
-export const convertPackingStylesToAED = async (
+export const getAvailableStock = async (
     req: RequestWithAuthData,
     res: Response,
 ): Promise<Response> => {
     try {
+        const productName =
+            typeof req.query.productName === "string" && req.query.productName
+                ? req.query.productName
+                : undefined;
+        const vendor =
+            typeof req.query.vendor === "string" && req.query.vendor
+                ? req.query.vendor
+                : undefined;
+
+        const data = await packingListService.getAvailableStock(
+            productName,
+            vendor,
+        );
+
+        return res.status(statusCode.OK).json({
+            success: true,
+            message: "PACKING_AVAILABLE_STOCK_FETCHED",
+            data,
+        });
+    } catch (error) {
+        return sendError(res, error, "GET_PACKING_AVAILABLE_STOCK_ERROR");
+    }
+};
+
+export const getTransitDetails = async (
+    req: RequestWithAuthData,
+    res: Response,
+): Promise<Response> => {
+    const id = getPackingListId(req, res);
+
+    if (!id) return res;
+
+    try {
+        const data = await packingListService.getTransitDetails(id);
+
+        return res.status(statusCode.OK).json({
+            success: true,
+            message: "PACKING_LIST_TRANSIT_FETCHED",
+            data,
+        });
+    } catch (error) {
+        return sendError(res, error, "GET_PACKING_LIST_TRANSIT_ERROR");
+    }
+};
+
+export const transferStylesToUAE = async (
+    req: RequestWithAuthData,
+    res: Response,
+): Promise<Response> => {
+    const id = getPackingListId(req, res);
+
+    if (!id) return res;
+
+    try {
         const userId = getAuthenticatedUserId(
             req,
             res,
-            "converting packing styles to AED",
+            "transferring styles of",
         );
 
         if (!userId) return res;
 
-        const result = await packingListService.convertPackingStylesToAED(
-            req.body.styles,
+        const data = await packingListService.transferStylesToUAE(
+            id,
+            req.body?.styleIds,
             userId,
         );
 
-        logger.info("Packing styles converted to AED successfully");
-
         return res.status(statusCode.OK).json({
             success: true,
-            message: message.PACKING_STYLES_AED_CONVERTED,
-            data: result,
+            message: "PACKING_STYLES_TRANSFERRED_TO_UAE",
+            data,
         });
     } catch (error) {
-        logger.error("Failed to convert packing styles to AED", error);
-
-        if (error instanceof Error) {
-            const errorResponses: Record<
-                string,
-                { status: number; message: string }
-            > = {
-                PACKING_STYLE_TRANSIT_REQUIRED: {
-                    status: statusCode.BAD_REQUEST,
-                    message: message.PACKING_STYLE_TRANSIT_REQUIRED,
-                },
-                PACKING_STYLE_ID_INVALID: {
-                    status: statusCode.BAD_REQUEST,
-                    message: message.PACKING_STYLE_ID_INVALID,
-                },
-                DUPLICATE_PACKING_STYLE_ID: {
-                    status: statusCode.BAD_REQUEST,
-                    message: message.DUPLICATE_PACKING_STYLE_ID,
-                },
-                PACKING_STYLE_TRANSIT_INVALID: {
-                    status: statusCode.BAD_REQUEST,
-                    message: message.PACKING_STYLE_TRANSIT_INVALID,
-                },
-                PACKING_STYLE_NOT_FOUND: {
-                    status: statusCode.NOT_FOUND,
-                    message: message.PACKING_STYLE_NOT_FOUND,
-                },
-            };
-
-            const result = errorResponses[error.message];
-
-            if (result) {
-                return res.status(result.status).json({
-                    success: false,
-                    message: result.message,
-                });
-            }
-        }
-
-        return res.status(statusCode.INTERNAL_SERVER_ERROR).json({
-            success: false,
-            message: message.INTERNAL_SERVER_ERROR,
-        });
+        return sendError(res, error, "TRANSFER_PACKING_STYLES_ERROR");
     }
 };
+
 export const updatePackingListsStatus = async (
     req: RequestWithAuthData,
     res: Response,

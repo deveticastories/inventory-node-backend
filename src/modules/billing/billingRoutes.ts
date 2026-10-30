@@ -27,29 +27,20 @@ router.use(verifyToken);
  *     BillingProductInput:
  *       type: object
  *       required:
- *         - uaeStoreStockTransfer
- *         - packingStyle
- *         - styleNo
- *         - productName
+ *         - uaeMainStock
  *         - qty
  *         - unitPrice
  *       properties:
- *         uaeStoreStockTransfer:
+ *         uaeMainStock:
  *           type: string
- *           description: UAE Store Stock Transfer document ID
- *         packingStyle:
- *           type: string
- *           description: Packing style subdocument ID
- *         styleNo:
- *           type: string
- *         productName:
- *           type: string
+ *           description: UAE_MAIN STORE stock row ID (from /api/uae-store-stock-transfers/main-stock); style no and product are taken from it
  *         qty:
  *           type: integer
  *           minimum: 1
+ *           description: Must not exceed the available qty; deducted from UAE_MAIN STORE
  *         unitPrice:
  *           type: number
- *           minimum: 0
+ *           description: Selling price in AED (defaults to the stock row's selling price on the UI, editable)
  *     BillingInput:
  *       type: object
  *       required:
@@ -61,20 +52,12 @@ router.use(verifyToken);
  *           format: date-time
  *         customer:
  *           type: string
- *           description: User document ID
+ *           description: Customer document ID
  *         products:
  *           type: array
  *           minItems: 1
  *           items:
  *             $ref: '#/components/schemas/BillingProductInput'
- *         returnAmount:
- *           type: number
- *           minimum: 0
- *           default: 0
- *         receivedAmount:
- *           type: number
- *           minimum: 0
- *           default: 0
  *     Billing:
  *       allOf:
  *         - $ref: '#/components/schemas/BillingInput'
@@ -89,6 +72,14 @@ router.use(verifyToken);
  *             invoiceTotal:
  *               type: number
  *               readOnly: true
+ *             returnAmount:
+ *               type: number
+ *               readOnly: true
+ *               description: Sum of customer returns against this invoice
+ *             receivedAmount:
+ *               type: number
+ *               readOnly: true
+ *               description: Sum of receipt entries against this invoice
  *             netAmount:
  *               type: number
  *               readOnly: true

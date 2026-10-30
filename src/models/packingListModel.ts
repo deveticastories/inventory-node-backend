@@ -1,16 +1,33 @@
 import mongoose, { Schema, type Document } from "mongoose";
 import { BaseDocument, BaseSchema } from "./baseModel";
 
+// Stock taken from TRP_MAIN STORE for one style, oldest purchase first.
+export interface PackingStyleAllocation {
+    qualityCheckProduct: mongoose.Types.ObjectId;
+    purchaseEntry: mongoose.Types.ObjectId;
+    qty: number;
+    rate: number;
+}
+
 export interface PackingStyle {
     styleNo: string;
-    indianStoreStockTransfer: mongoose.Types.ObjectId;
-    indianStoreStockTransferProduct: mongoose.Types.ObjectId;
+    productName: string;
+    vendor: mongoose.Types.ObjectId;
+    qty: number;
+    // Weighted INR unit rate of the allocated purchase lines
+    rate: number;
+    allocations: PackingStyleAllocation[];
     transit: {
         perPcAED: number;
         expenseRecAED: number;
         updatedUnitRateAED: number;
     };
-    qty: number;
+    sellingPriceAED: number;
+    moved: boolean;
+    transferDate?: Date;
+    // Legacy references (packing used to require an IND store transfer)
+    indianStoreStockTransfer?: mongoose.Types.ObjectId;
+    indianStoreStockTransferProduct?: mongoose.Types.ObjectId;
 }
 
 export type PackingStyleDocument = PackingStyle & Document;
@@ -33,6 +50,31 @@ export interface PackingList extends BaseDocument {
 
 export type PackingListDocument = PackingList & Document;
 
+const PackingStyleAllocationSchema = new Schema<PackingStyleAllocation>(
+    {
+        qualityCheckProduct: {
+            type: Schema.Types.ObjectId,
+            required: true,
+        },
+        purchaseEntry: {
+            type: Schema.Types.ObjectId,
+            ref: "PurchaseEntry",
+            required: true,
+        },
+        qty: {
+            type: Number,
+            required: true,
+            min: 1,
+        },
+        rate: {
+            type: Number,
+            required: true,
+            min: 0,
+        },
+    },
+    { _id: false },
+);
+
 const PackingStyleSchema: Schema<PackingStyle> = new Schema(
     {
         styleNo: {
@@ -40,14 +82,44 @@ const PackingStyleSchema: Schema<PackingStyle> = new Schema(
             required: true,
             trim: true,
         },
+        productName: {
+            type: String,
+            required: true,
+            trim: true,
+        },
+        vendor: {
+            type: Schema.Types.ObjectId,
+            ref: "Vendor",
+            required: true,
+        },
+        rate: {
+            type: Number,
+            required: true,
+            min: 0,
+            default: 0,
+        },
+        allocations: {
+            type: [PackingStyleAllocationSchema],
+            default: [],
+        },
+        sellingPriceAED: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
+        moved: {
+            type: Boolean,
+            default: false,
+        },
+        transferDate: {
+            type: Date,
+        },
         indianStoreStockTransfer: {
             type: Schema.Types.ObjectId,
             ref: "IndianStoreStockTransfer",
-            required: true,
         },
         indianStoreStockTransferProduct: {
             type: Schema.Types.ObjectId,
-            required: true,
         },
         transit: {
             type: new Schema(
@@ -134,9 +206,9 @@ PackingListSchema.add(BaseSchema);
 
 PackingListSchema.index({ packingDate: -1 });
 PackingListSchema.index({ packingListStatus: 1 });
-PackingListSchema.index({ "styles.indianStoreStockTransfer": 1 });
+PackingListSchema.index({ "styles.styleNo": 1 });
 PackingListSchema.index({
-    "styles.indianStoreStockTransferProduct": 1,
+    "styles.allocations.qualityCheckProduct": 1,
 });
 
 const PackingListModel =

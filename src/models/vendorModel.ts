@@ -24,17 +24,17 @@ const VendorSchema: Schema<Vendor> = new Schema({
   },
   bankName: {
     type: String,
-    required: true,
+    default: "",
     trim: true,
   },
   accountNo: {
     type: String,
-    required: true,
+    default: "",
     trim: true,
   },
   ifsc: {
     type: String,
-    required: true,
+    default: "",
     trim: true,
     uppercase: true,
   },

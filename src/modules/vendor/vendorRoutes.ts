@@ -190,6 +190,28 @@ router.get("/", vendorController.getAllVendors);
  *       404:
  *         description: Vendor not found
  */
+/**
+ * @swagger
+ * /api/vendors/{id}/details:
+ *   get:
+ *     summary: Vendor details - outstanding amount, last purchases and payment history
+ *     tags: [Vendors]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Vendor details fetched
+ *       404:
+ *         description: Vendor not found
+ */
+router.get("/:id/details", vendorController.getVendorDetails);
+
 router.get("/:id", vendorController.getVendorById);
 
 /**

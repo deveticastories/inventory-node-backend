@@ -370,6 +370,95 @@ router.get(
 
 /**
  * @swagger
+ * /api/indian-store-stock-transfers/main-stock:
+ *   get:
+ *     summary: TRP_MAIN STORE stock (QC-approved qty minus sample transfers and packed qty)
+ *     tags: [Indian Store Stock Transfers]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Product or vendor name
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [date, vendor, product]
+ *     responses:
+ *       200:
+ *         description: Stock lines with stock volume / value summary
+ */
+router.get(
+    "/main-stock",
+    indianStoreStockTransferController.getMainStoreStockController,
+);
+
+/**
+ * @swagger
+ * /api/indian-store-stock-transfers/sample-stock:
+ *   get:
+ *     summary: TRP_SAMPLE STORE stock (only stock transferred from TRP_MAIN STORE)
+ *     tags: [Indian Store Stock Transfers]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: storeId
+ *         schema:
+ *           type: string
+ *         description: Optional destination store filter
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [date, vendor, product]
+ *     responses:
+ *       200:
+ *         description: Sample stock lines with stock volume / value summary
+ */
+router.get(
+    "/sample-stock",
+    indianStoreStockTransferController.getSampleStoreStockController,
+);
+
+/**
+ * @swagger
+ * /api/indian-store-stock-transfers/products:
+ *   get:
+ *     summary: Products available to transfer (storeType=fromStore) or held by a store (storeType=toStore)
+ *     tags: [Indian Store Stock Transfers]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: storeId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: storeType
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [fromStore, toStore]
+ *     responses:
+ *       200:
+ *         description: Products fetched
+ */
+router.get(
+    "/products",
+    indianStoreStockTransferController.getIndianStoreStockTransferProductsController,
+);
+
+/**
+ * @swagger
  * /api/indian-store-stock-transfers/{id}:
  *   get:
  *     summary: Get an Indian Store Stock Transfer by ID

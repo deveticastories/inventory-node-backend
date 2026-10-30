@@ -16,13 +16,15 @@ export const createStore = async (
     throw new Error("A store with this contact number already exists");
   }
 
+  // In charge must be a Biller or Purchaser (Admins are not assigned stores)
   const userExists = await User.exists({
     _id: storeData.inCharge,
     isDeleted: false,
+    employeeType: { $in: ["Biller", "Purchaser"] },
   });
 
   if (!userExists) {
-    throw new Error("Assigned user not found");
+    throw new Error("Assigned user not found or is not a Biller / Purchaser");
   }
 
   return storeRepo.create({
@@ -74,10 +76,11 @@ export const editStore = async (
     const userExists = await User.exists({
       _id: updateData.inCharge,
       isDeleted: false,
+      employeeType: { $in: ["Biller", "Purchaser"] },
     });
 
     if (!userExists) {
-      throw new Error("Assigned user not found");
+      throw new Error("Assigned user not found or is not a Biller / Purchaser");
     }
   }
 

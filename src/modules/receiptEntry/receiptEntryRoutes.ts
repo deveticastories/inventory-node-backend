@@ -130,6 +130,23 @@ router.get("/", receiptEntryController.getAllReceiptEntries);
 
 /**
  * @swagger
+ * /api/receipt-entries/receivable-invoices:
+ *   get:
+ *     summary: Customer invoices with a balance (for the new receipt dropdown)
+ *     tags: [Receipt Entries]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Receivable invoices fetched
+ */
+router.get(
+    "/receivable-invoices",
+    receiptEntryController.getReceivableInvoices,
+);
+
+/**
+ * @swagger
  * /api/receipt-entries/invoice/{invoiceId}:
  *   get:
  *     summary: Get receipt entries by billing invoice ID

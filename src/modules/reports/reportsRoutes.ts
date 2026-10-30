@@ -6,6 +6,7 @@ import {
     getAllDebitReportsController,
     getAllTransitReportsController,
 } from "./reportsController";
+import * as reportsController from "./reportsController";
 
 const router = Router();
 
@@ -160,5 +161,83 @@ router.get("/debit", getAllDebitReportsController);
  *         description: Internal server error
  */
 router.get("/transit", getAllTransitReportsController);
+
+/**
+ * @swagger
+ * /api/reports/dashboard:
+ *   get:
+ *     summary: Dashboard tiles (outstanding, stock values, sales, expenses) and pending actions
+ *     tags: [Reports]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Dashboard fetched
+ */
+router.get("/dashboard", reportsController.getDashboardController);
+
+/**
+ * @swagger
+ * /api/reports/ind-stock:
+ *   get:
+ *     summary: IND stock report (TRP_MAIN STORE)
+ *     tags: [Reports]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Report fetched
+ * /api/reports/uae-stock:
+ *   get:
+ *     summary: UAE stock report (UAE_MAIN STORE)
+ *     tags: [Reports]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Report fetched
+ * /api/reports/sample-stock:
+ *   get:
+ *     summary: Sample stock report (TRP_SAMPLE STORE)
+ *     tags: [Reports]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Report fetched
+ * /api/reports/credit:
+ *   get:
+ *     summary: Credit report (customer receipts)
+ *     tags: [Reports]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Report fetched
+ * /api/reports/damage:
+ *   get:
+ *     summary: Damage report (QC damage in India + damaged customer returns in UAE)
+ *     tags: [Reports]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Report fetched
+ * /api/reports/return:
+ *   get:
+ *     summary: Return report (customer returns)
+ *     tags: [Reports]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Report fetched
+ */
+router.get("/ind-stock", reportsController.getIndStockReportController);
+router.get("/uae-stock", reportsController.getUAEStockReportController);
+router.get("/sample-stock", reportsController.getSampleStockReportController);
+router.get("/credit", reportsController.getCreditReportController);
+router.get("/damage", reportsController.getDamageReportController);
+router.get("/return", reportsController.getReturnReportController);
 
 export default router;

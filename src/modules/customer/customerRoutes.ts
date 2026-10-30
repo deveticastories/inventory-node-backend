@@ -161,6 +161,33 @@ router.get("/", customerController.getAllCustomers);
  *       404:
  *         description: Customer not found
  */
+/**
+ * @swagger
+ * /api/customers/{id}/statement:
+ *   get:
+ *     summary: Customer statement - outstanding amount and invoices
+ *     tags: [Customers]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [all, paid, outstanding]
+ *     responses:
+ *       200:
+ *         description: Statement fetched
+ *       404:
+ *         description: Customer not found
+ */
+router.get("/:id/statement", customerController.getCustomerStatement);
+
 router.get("/:id", customerController.getCustomerById);
 
 /**

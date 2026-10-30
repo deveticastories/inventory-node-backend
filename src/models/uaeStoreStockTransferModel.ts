@@ -1,29 +1,37 @@
 import mongoose, { Schema, type Document } from "mongoose";
 import { BaseDocument, BaseSchema } from "./baseModel";
 
-export type UAEReturnType = "Fully" | "Partially";
+// A customer return booked into UAE_RETURN STORE against a billing invoice.
+// `inStore` is what is still sitting in the return store; it goes down when
+// non-damaged stock is moved back to UAE_MAIN STORE.
+export type UAEReturnType = "Fully" | "Partial";
 export type UAEReturnReason = "Damage" | "Size issue" | "Other";
 
 export interface UAEStoreStockReturnProduct {
-    packingList: mongoose.Types.ObjectId;
-    packingStyle: mongoose.Types.ObjectId;
+    _id?: mongoose.Types.ObjectId;
+    billingProduct: mongoose.Types.ObjectId;
+    uaeMainStock: mongoose.Types.ObjectId;
     styleNo: string;
     productName: string;
     returnedQty: number;
-    invoiceNo: string;
-    invoiceValue: number;
-    updatedInvoiceValue: number;
+    unitPrice: number;
+    costAED: number;
+    returnValue: number;
     inStore: number;
 }
 
 export interface UAEStoreStockTransfer extends BaseDocument {
-    packingList: mongoose.Types.ObjectId;
-    fromStore: mongoose.Types.ObjectId;
-    toStore: mongoose.Types.ObjectId;
+    returnNo: string;
+    invoice: mongoose.Types.ObjectId;
+    invoiceNo: string;
     returnType: UAEReturnType;
     reason: UAEReturnReason;
-    products: UAEStoreStockReturnProduct[];
+    products: mongoose.Types.DocumentArray<
+        UAEStoreStockReturnProduct & Document
+    >;
     returnDate: Date;
+    fromStore?: mongoose.Types.ObjectId;
+    toStore?: mongoose.Types.ObjectId;
 }
 
 export type UAEStoreStockTransferDocument = UAEStoreStockTransfer & Document;
@@ -31,13 +39,13 @@ export type UAEStoreStockTransferDocument = UAEStoreStockTransfer & Document;
 const UAEStoreStockReturnProductSchema =
     new Schema<UAEStoreStockReturnProduct>(
         {
-            packingList: {
+            billingProduct: {
                 type: Schema.Types.ObjectId,
-                ref: "PackingList",
                 required: true,
             },
-            packingStyle: {
+            uaeMainStock: {
                 type: Schema.Types.ObjectId,
+                ref: "UAEMainStock",
                 required: true,
             },
             styleNo: {
@@ -59,17 +67,17 @@ const UAEStoreStockReturnProductSchema =
                     message: "RETURNED_QTY_INVALID",
                 },
             },
-            invoiceNo: {
-                type: String,
-                required: true,
-                trim: true,
-            },
-            invoiceValue: {
+            unitPrice: {
                 type: Number,
                 required: true,
                 min: 0,
             },
-            updatedInvoiceValue: {
+            costAED: {
+                type: Number,
+                default: 0,
+                min: 0,
+            },
+            returnValue: {
                 type: Number,
                 required: true,
                 min: 0,
@@ -86,25 +94,26 @@ const UAEStoreStockReturnProductSchema =
 const UAEStoreStockTransferSchema =
     new Schema<UAEStoreStockTransferDocument>(
         {
-            packingList: {
+            returnNo: {
+                type: String,
+                required: true,
+                unique: true,
+                trim: true,
+            },
+            invoice: {
                 type: Schema.Types.ObjectId,
-                ref: "PackingList",
+                ref: "Billing",
                 required: true,
                 index: true,
             },
-            fromStore: {
-                type: Schema.Types.ObjectId,
-                ref: "Store",
+            invoiceNo: {
+                type: String,
                 required: true,
-            },
-            toStore: {
-                type: Schema.Types.ObjectId,
-                ref: "Store",
-                required: true,
+                trim: true,
             },
             returnType: {
                 type: String,
-                enum: ["Fully", "Partially"],
+                enum: ["Fully", "Partial"],
                 required: true,
             },
             reason: {
@@ -126,24 +135,22 @@ const UAEStoreStockTransferSchema =
                 required: true,
                 default: Date.now,
             },
+            fromStore: {
+                type: Schema.Types.ObjectId,
+                ref: "Store",
+            },
+            toStore: {
+                type: Schema.Types.ObjectId,
+                ref: "Store",
+            },
         },
         { timestamps: true },
     );
 
 UAEStoreStockTransferSchema.add(BaseSchema);
 
-UAEStoreStockTransferSchema.index({
-    packingList: 1,
-    isDeleted: 1,
-});
-UAEStoreStockTransferSchema.index({
-    fromStore: 1,
-    isDeleted: 1,
-});
-UAEStoreStockTransferSchema.index({
-    toStore: 1,
-    isDeleted: 1,
-});
+UAEStoreStockTransferSchema.index({ invoice: 1, isDeleted: 1 });
+UAEStoreStockTransferSchema.index({ returnDate: -1 });
 
 const UAEStoreStockTransferModel =
     mongoose.models.UAEStoreStockTransfer ||

@@ -1,6 +1,10 @@
 import mongoose from "mongoose";
 import * as customerRepo from "./customerRepository";
 import { CreateCustomerInput, UpdateCustomerInput } from "../../validation/customerValidation";
+import {
+  getCustomerOutstandingMap,
+  getCustomerStatement,
+} from "../stock/ledgerService";
 
 
 export const createCustomer = async (
@@ -28,7 +32,37 @@ export const createCustomer = async (
 };
 
 export const getAllCustomers = async (page: number, limit: number) => {
-  return customerRepo.getAllCustomers(page, limit);
+  const [result, outstanding] = await Promise.all([
+    customerRepo.getAllCustomers(page, limit),
+    getCustomerOutstandingMap(),
+  ]);
+
+  return {
+    ...result,
+    data: result.data.map((customer: any) => ({
+      ...(typeof customer.toObject === "function" ? customer.toObject() : customer),
+      outstandingAmount: outstanding.get(customer._id.toString()) ?? 0,
+    })),
+  };
+};
+
+/** Customer statement: outstanding plus all / paid / outstanding invoices. */
+export const getCustomerStatementService = async (
+  id: string,
+  status: "all" | "paid" | "outstanding",
+) => {
+  if (!mongoose.isValidObjectId(id)) {
+    throw new Error("CUSTOMER_ID_INVALID");
+  }
+
+  const customer = await customerRepo.findById(id);
+
+  if (!customer) return null;
+
+  return {
+    customer,
+    ...(await getCustomerStatement(id, status)),
+  };
 };
 
 export const getCustomerById = async (id: string) => {

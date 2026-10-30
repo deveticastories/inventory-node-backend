@@ -3,6 +3,8 @@ import mongoose from "mongoose";
 import * as receiptEntryRepo from "./receiptEntryRepository";
 import ReceiptEntryModel from "../../models/receiptEntryModel";
 import BillingModel from "../../models/billingModel";
+import { refreshBillingTotals } from "../billing/billingService";
+import { round2 } from "../../utils/errorStatus";
 
 const generateReceiptNo = async (): Promise<string> => {
     const latest = await receiptEntryRepo.findLatestReceiptEntry();
@@ -45,35 +47,32 @@ export const createReceiptEntry = async (
         throw new Error("BILLING_INVOICE_NOT_FOUND");
     }
 
-    const outstandingBalance = Math.max(
-        0,
-        invoice.netAmount - invoice.receivedAmount,
+    const outstandingBalance = round2(
+        Math.max(0, invoice.netAmount - invoice.receivedAmount),
     );
 
-    if (data.receivedAmount > outstandingBalance) {
+    if (data.receivedAmount > outstandingBalance + 0.01) {
         throw new Error("RECEIPT_EXCEEDS_BALANCE");
     }
 
-    const balanceAmount =
-        outstandingBalance - data.receivedAmount;
+    const balanceAmount = round2(
+        Math.max(0, outstandingBalance - data.receivedAmount),
+    );
 
     const receiptNo = await generateReceiptNo();
 
     const receipt = await receiptEntryRepo.createReceiptEntry({
         receiptNo,
         invoice: invoiceId,
+        customer: invoice.customer,
+        receiptDate: new Date(),
+        receivableAmount: outstandingBalance,
         receivedAmount: data.receivedAmount,
         balanceAmount,
         createdBy,
     });
 
-    invoice.receivedAmount += data.receivedAmount;
-    invoice.balanceAmount = Math.max(
-        0,
-        invoice.netAmount - invoice.receivedAmount,
-    );
-
-    await invoice.save();
+    await refreshBillingTotals(invoiceId);
 
     return receipt;
 };
@@ -81,8 +80,14 @@ export const createReceiptEntry = async (
 export const getAllReceiptEntries = async (
     page: number,
     limit: number,
+    status: "all" | "paid" | "outstanding" = "all",
+    sortBy: "date" | "customer" = "date",
 ) => {
-    return receiptEntryRepo.getAllReceiptEntries(page, limit);
+    return receiptEntryRepo.getAllReceiptEntries(page, limit, status, sortBy);
+};
+
+export const getReceivableInvoices = async () => {
+    return receiptEntryRepo.findReceivableInvoices();
 };
 
 export const getReceiptEntryById = async (id: string) => {
@@ -140,22 +145,12 @@ export const deleteReceiptEntry = async (
 
     if (!existing) return null;
 
-    const invoice = await BillingModel.findOne({
-        _id: existing.invoice,
-        isDeleted: false,
-    });
+    const deleted = await receiptEntryRepo.softDeleteReceiptEntry(
+        id,
+        deletedBy,
+    );
 
-    if (invoice) {
-        invoice.receivedAmount = Math.max(
-            0,
-            invoice.receivedAmount - existing.receivedAmount,
-        );
-        invoice.balanceAmount = Math.max(
-            0,
-            invoice.netAmount - invoice.receivedAmount,
-        );
-        await invoice.save();
-    }
+    await refreshBillingTotals(existing.invoice);
 
-    return receiptEntryRepo.softDeleteReceiptEntry(id, deletedBy);
+    return deleted;
 };

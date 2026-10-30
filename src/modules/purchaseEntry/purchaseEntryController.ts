@@ -153,6 +153,21 @@ export const updatePurchaseEntryController = async (
     const errorMessage = error instanceof Error ? error.message : "";
 
     if (
+      errorMessage === "PURCHASE_QC_ALREADY_DONE" ||
+      errorMessage === "PURCHASE_QC_RECORD_REQUIRED"
+    ) {
+      res.status(
+        errorMessage === "PURCHASE_QC_ALREADY_DONE"
+          ? statusCode.CONFLICT
+          : statusCode.BAD_REQUEST,
+      ).json({
+        success: false,
+        message: errorMessage,
+      });
+      return;
+    }
+
+    if (
       errorMessage === "PURCHASE_ID_INVALID" ||
       errorMessage === "PURCHASE_NOT_FOUND" ||
       errorMessage === "PURCHASE_VENDOR_NOT_FOUND"
@@ -198,6 +213,21 @@ export const updatePurchaseEntryQCController = async (
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "";
+
+    if (
+      errorMessage === "PURCHASE_QC_ALREADY_DONE" ||
+      errorMessage === "PURCHASE_QC_RECORD_REQUIRED"
+    ) {
+      res.status(
+        errorMessage === "PURCHASE_QC_ALREADY_DONE"
+          ? statusCode.CONFLICT
+          : statusCode.BAD_REQUEST,
+      ).json({
+        success: false,
+        message: errorMessage,
+      });
+      return;
+    }
 
     if (
       errorMessage === "PURCHASE_ID_INVALID" ||
@@ -250,6 +280,21 @@ export const deletePurchaseEntryController = async (
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "";
+
+    if (
+      errorMessage === "PURCHASE_QC_ALREADY_DONE" ||
+      errorMessage === "PURCHASE_QC_RECORD_REQUIRED"
+    ) {
+      res.status(
+        errorMessage === "PURCHASE_QC_ALREADY_DONE"
+          ? statusCode.CONFLICT
+          : statusCode.BAD_REQUEST,
+      ).json({
+        success: false,
+        message: errorMessage,
+      });
+      return;
+    }
 
     if (
       errorMessage === "PURCHASE_ID_INVALID" ||

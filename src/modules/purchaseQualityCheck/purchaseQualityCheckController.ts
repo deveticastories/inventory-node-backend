@@ -7,6 +7,7 @@ import {
   createOrUpdateQualityCheckService,
   getAllQualityChecksService,
   getQualityCheckByIdService,
+  getQualityCheckByPurchaseEntryService,
 } from "./purchaseQualityCheckService";
 
 const getParamId = (id: string | string[]) =>
@@ -79,6 +80,36 @@ export const getQualityCheckByIdController = async (
     const id = getParamId(req.params.id);
 
     const qualityCheck = await getQualityCheckByIdService(id);
+
+    return res.status(statusCode.OK).json({
+      success: true,
+      message: message.PURCHASE_QUALITY_CHECK_FETCH_SUCCESS,
+      data: qualityCheck,
+    });
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : message.INTERNAL_SERVER_ERROR;
+
+    const responseStatus =
+      errorMessage === message.PURCHASE_QUALITY_CHECK_NOT_FOUND
+        ? statusCode.NOT_FOUND
+        : statusCode.BAD_REQUEST;
+
+    return res.status(responseStatus).json({
+      success: false,
+      message: errorMessage,
+    });
+  }
+};
+
+export const getQualityCheckByPurchaseEntryController = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const qualityCheck = await getQualityCheckByPurchaseEntryService(
+      getParamId(req.params.purchaseEntryId),
+    );
 
     return res.status(statusCode.OK).json({
       success: true,

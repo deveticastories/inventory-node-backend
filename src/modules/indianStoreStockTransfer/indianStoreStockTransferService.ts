@@ -1,136 +1,130 @@
 import mongoose from "mongoose";
 import {
     findStoreById,
-    findQualityCheckProduct,
-    getTransferredProductsForStore,
-    getAvailableQty,
+    getSampleQtyByProduct,
     createIndianStoreStockTransfer,
     findIndianStoreStockTransferById,
     findAllIndianStoreStockTransfers,
-    getQualityCheckProducts, getTransferredProductsFromStore
 } from "./indianStoreStockTransferRepository";
+import {
+    filterAndSortStockLines,
+    getMainStockLines,
+    type StockSort,
+} from "../stock/stockService";
 
-const getQualityCheckProductId = (product: any): string => {
-    const qualityCheckProduct = product.qualityCheckProduct;
+const STOCK_SORTS: StockSort[] = ["date", "vendor", "product"];
 
-    if (
-        qualityCheckProduct &&
-        typeof qualityCheckProduct === "object" &&
-        "_id" in qualityCheckProduct
-    ) {
-        return qualityCheckProduct._id?.toString() ?? "";
-    }
+const toStockSort = (sortBy?: string): StockSort =>
+    STOCK_SORTS.includes(sortBy as StockSort) ? (sortBy as StockSort) : "date";
 
-    if (qualityCheckProduct) {
-        return product.qualityCheckProduct.toString();
-    }
-
-    return product._id?.toString() ?? "";
-};
-
-const getPopulatedQualityCheckProduct = (product: any) => {
-    const qualityCheckProduct = product.qualityCheckProduct;
-
-    if (
-        qualityCheckProduct &&
-        typeof qualityCheckProduct === "object" &&
-        "_id" in qualityCheckProduct
-    ) {
-        return qualityCheckProduct;
-    }
-
-    return null;
-};
-
-export const getIndianStoreStockTransferProducts = async (
-    storeId: string,
-    storeType: "fromStore" | "toStore",
-) => {
+const getIndianStore = async (storeId: string) => {
     if (!mongoose.Types.ObjectId.isValid(storeId)) {
         throw new Error("STORE_ID_INVALID");
     }
 
+    const store = await findStoreById(storeId);
+
+    if (!store) {
+        throw new Error("STORE_NOT_FOUND");
+    }
+
+    if (store.location !== "IND") {
+        throw new Error("STORE_NOT_IND");
+    }
+
+    return store;
+};
+
+/** TRP_MAIN STORE: QC-approved stock still available. */
+export const getMainStoreStock = async (search?: string, sortBy?: string) => {
+    const lines = filterAndSortStockLines(
+        await getMainStockLines(),
+        search,
+        toStockSort(sortBy),
+    );
+
+    return {
+        summary: {
+            stockVolume: lines.reduce((total, line) => total + line.availableQty, 0),
+            stockValue: lines.reduce(
+                (total, line) => total + line.availableQty * line.rate,
+                0,
+            ),
+        },
+        data: lines,
+    };
+};
+
+/** TRP_SAMPLE STORE: stock reaches it only by transfer from TRP_MAIN STORE. */
+export const getSampleStoreStock = async (
+    search?: string,
+    sortBy?: string,
+    storeId?: string,
+) => {
+    if (storeId) {
+        await getIndianStore(storeId);
+    }
+
+    const [mainLines, sampleRows] = await Promise.all([
+        getMainStockLines(),
+        getSampleQtyByProduct(storeId),
+    ]);
+
+    const sampleQty = new Map(
+        sampleRows.map((row) => [row._id.toString(), row.qty]),
+    );
+
+    const lines = filterAndSortStockLines(
+        mainLines
+            .filter((line) =>
+                (sampleQty.get(line.qualityCheckProduct.toString()) ?? 0) > 0,
+            )
+            .map((line) => ({
+                ...line,
+                sampleQty:
+                    sampleQty.get(line.qualityCheckProduct.toString()) ?? 0,
+            })),
+        search,
+        toStockSort(sortBy),
+    );
+
+    return {
+        summary: {
+            stockVolume: lines.reduce((total, line) => total + line.sampleQty, 0),
+            stockValue: lines.reduce(
+                (total, line) => total + line.sampleQty * line.rate,
+                0,
+            ),
+        },
+        data: lines,
+    };
+};
+
+/**
+ * Products for the transfer dialog: storeType "fromStore" lists TRP_MAIN
+ * STORE lines that still have stock, "toStore" lists what the store holds.
+ */
+export const getIndianStoreStockTransferProducts = async (
+    storeId: string,
+    storeType: "fromStore" | "toStore",
+) => {
     if (storeType !== "fromStore" && storeType !== "toStore") {
         throw new Error("STORE_TYPE_INVALID");
     }
 
-    const store = await findStoreById(storeId);
+    await getIndianStore(storeId);
 
-    if (!store || store.isDeleted) {
-        throw new Error("STORE_NOT_FOUND");
+    if (storeType === "toStore") {
+        return (await getSampleStoreStock(undefined, undefined, storeId)).data;
     }
 
-    const records =
-        storeType === "fromStore"
-            ? await getQualityCheckProducts(storeId)
-            : await getTransferredProductsForStore(storeId);
-
-    const products = [];
-
-    for (const product of records) {
-        const productId = getQualityCheckProductId(product);
-
-        if (
-            !productId ||
-            !mongoose.Types.ObjectId.isValid(productId)
-        ) {
-            continue;
-        }
-
-        const availableQty = await getAvailableQty(
-            storeId,
-            productId,
-            storeType,
-        );
-
-        if (availableQty <= 0) {
-            continue;
-        }
-
-        if (
-            storeType === "toStore" &&
-            !("transferredQty" in product)
-        ) {
-            continue;
-        }
-
-        const populatedProduct =
-            getPopulatedQualityCheckProduct(product);
-
-        products.push({
-            ...(storeType === "toStore"
-                ? {
-                    _id: product._id,
-                    indianStoreStockTransfer:
-                        product.indianStoreStockTransfer,
-                    indianStoreStockTransferProduct:
-                        product.indianStoreStockTransferProduct ??
-                        product._id,
-                }
-                : {}),
-            qualityCheckProduct:
-                storeType === "fromStore"
-                    ? product._id
-                    : populatedProduct ?? productId,
-            productName:
-                populatedProduct?.productName ??
-                product.productName,
-            rate:
-                populatedProduct?.purchaseRate ??
-                ("rate" in product
-                    ? product.rate
-                    : product.purchaseRate),
-            ...(storeType === "toStore" &&
-                "transferredQty" in product
-                ? { transferredQty: product.transferredQty }
-                : {}),
-            availableQtyAfterTransfer: availableQty,
-        });
-    }
-
-    return products;
+    return (await getMainStockLines())
+        .filter((line) => line.availableQty > 0)
+        .map((line) => ({
+            ...line,
+            availableQtyAfterTransfer: line.availableQty,
+        }));
 };
-
 
 export const getAllIndianStoreStockTransfers = async (
     page: number,
@@ -146,133 +140,16 @@ export const getAllIndianStoreStockTransfers = async (
     const storeId = fromStore ?? toStore;
 
     if (storeId) {
-        if (!mongoose.Types.ObjectId.isValid(storeId)) {
-            throw new Error("STORE_ID_INVALID");
-        }
-
-        const store = await findStoreById(storeId);
-
-        if (!store || store.isDeleted) {
-            throw new Error("STORE_NOT_FOUND");
-        }
-
-        const storeType: "fromStore" | "toStore" = fromStore
-            ? "fromStore"
-            : "toStore";
-
-        const records =
-            storeType === "fromStore"
-                ? await getTransferredProductsFromStore(storeId)
-                : await getTransferredProductsForStore(storeId);
-
-        const filteredProducts: any[] = [];
-
-        for (const product of records) {
-            const productId = getQualityCheckProductId(product);
-
-            const populatedProduct =
-                getPopulatedQualityCheckProduct(product);
-
-            const productName =
-                populatedProduct?.productName ??
-                product.productName ??
-                "";
-
-            if (
-                search?.trim() &&
-                !productName
-                    .toLowerCase()
-                    .includes(search.trim().toLowerCase())
-            ) {
-                continue;
-            }
-
-            if (storeType === "fromStore") {
-                filteredProducts.push({
-                    _id: product._id,
-                    indianStoreStockTransfer:
-                        product.indianStoreStockTransfer,
-                    indianStoreStockTransferProduct:
-                        product.indianStoreStockTransferProduct ??
-                        product._id,
-                    qualityCheckProduct:
-                        populatedProduct ??
-                        product.qualityCheckProduct ??
-                        productId,
-                    productName,
-                    rate:
-                        populatedProduct?.purchaseRate ??
-                        product.rate ??
-                        product.purchaseRate ??
-                        0,
-                    transferredQty: product.transferredQty ?? 0,
-                    availableQtyAfterTransfer:
-                        product.availableQty ?? 0,
-                });
-
-                continue;
-            }
-
-            if (
-                !productId ||
-                !mongoose.Types.ObjectId.isValid(productId)
-            ) {
-                continue;
-            }
-
-            const availableQty = await getAvailableQty(
-                storeId,
-                productId,
-            );
-
-            if (availableQty <= 0) {
-                continue;
-            }
-
-            if (!("transferredQty" in product)) {
-                continue;
-            }
-
-            filteredProducts.push({
-                _id: product._id,
-                indianStoreStockTransfer:
-                    product.indianStoreStockTransfer,
-                indianStoreStockTransferProduct:
-                    product.indianStoreStockTransferProduct ??
-                    product._id,
-                qualityCheckProduct:
-                    populatedProduct ??
-                    product.qualityCheckProduct ??
-                    productId,
-                productName,
-                rate:
-                    populatedProduct?.purchaseRate ??
-                    product.rate ??
-                    product.purchaseRate ??
-                    0,
-                transferredQty: product.transferredQty,
-                availableQtyAfterTransfer: availableQty,
-            });
-        }
-
-        const skip = (page - 1) * limit;
-
-        return {
-            data: filteredProducts.slice(skip, skip + limit),
-            totalRecords: filteredProducts.length,
-        };
+        await getIndianStore(storeId);
     }
 
-    const result = await findAllIndianStoreStockTransfers(
+    return findAllIndianStoreStockTransfers(
         page,
         limit,
         search,
+        fromStore,
+        toStore,
     );
-
-    return {
-        data: result.data,
-        totalRecords: result.pagination.totalRecords,
-    };
 };
 
 interface CreateIndianStoreStockTransferInput {
@@ -284,6 +161,7 @@ interface CreateIndianStoreStockTransferInput {
         qty: number;
     }[];
 }
+
 export const createIndianStoreStockTransferService = async (
     data: CreateIndianStoreStockTransferInput,
 ) => {
@@ -302,37 +180,16 @@ export const createIndianStoreStockTransferService = async (
         throw new Error("TRANSFER_PRODUCTS_REQUIRED");
     }
 
-    const [fromStore, toStore] = await Promise.all([
-        findStoreById(data.fromStore),
-        findStoreById(data.toStore),
+    await Promise.all([
+        getIndianStore(data.fromStore),
+        getIndianStore(data.toStore),
     ]);
 
-    if (
-        !fromStore ||
-        !toStore ||
-        fromStore.isDeleted ||
-        toStore.isDeleted
-    ) {
-        throw new Error("STORE_NOT_FOUND");
-    }
-
+    const mainLines = await getMainStockLines();
     const seenProducts = new Set<string>();
 
-    const products: {
-        qualityCheckProduct: mongoose.Types.ObjectId;
-        productName: string;
-        transferredQty: number;
-        availableQty: number;
-        rate: number;
-        total: number;
-    }[] = [];
-
-    for (const item of data.products) {
-        if (
-            !mongoose.Types.ObjectId.isValid(
-                item.qualityCheckProduct,
-            )
-        ) {
+    const products = data.products.map((item) => {
+        if (!mongoose.Types.ObjectId.isValid(item.qualityCheckProduct)) {
             throw new Error("QUALITY_CHECK_PRODUCT_ID_INVALID");
         }
 
@@ -340,9 +197,7 @@ export const createIndianStoreStockTransferService = async (
             throw new Error("TRANSFER_QUANTITY_INVALID");
         }
 
-        const productId = new mongoose.Types.ObjectId(
-            item.qualityCheckProduct,
-        ).toString();
+        const productId = item.qualityCheckProduct.toString();
 
         if (seenProducts.has(productId)) {
             throw new Error("DUPLICATE_TRANSFER_PRODUCT");
@@ -350,86 +205,46 @@ export const createIndianStoreStockTransferService = async (
 
         seenProducts.add(productId);
 
-        const qualityCheck = await findQualityCheckProduct(productId);
-
-        const qualityCheckProduct = qualityCheck?.products.find(
-            (product: any) =>
-                product._id?.toString() === productId,
+        const line = mainLines.find(
+            (stockLine) =>
+                stockLine.qualityCheckProduct.toString() === productId,
         );
 
-        if (!qualityCheckProduct) {
+        if (!line) {
             throw new Error("QUALITY_CHECK_PRODUCT_NOT_FOUND");
         }
 
-        const qcAvailableQty = Number(
-            qualityCheckProduct.availableQtyAfterQC ?? 0,
-        );
-
-        const alreadyTransferredQty = await getAvailableQty(
-            data.fromStore,
-            productId,
-        );
-
-        const availableQty = Math.max(
-            0,
-            qcAvailableQty - alreadyTransferredQty,
-        );
-
-        console.log("========== STOCK TRANSFER VALIDATION ==========");
-        console.log("From Store:", data.fromStore);
-        console.log("To Store:", data.toStore);
-        console.log("Product ID:", productId);
-        console.log("Product Name:", qualityCheckProduct.productName);
-        console.log("QC Available Qty:", qcAvailableQty);
-        console.log("Already Transferred Qty:", alreadyTransferredQty);
-        console.log("Available Qty:", availableQty);
-        console.log("Requested Qty:", item.qty);
-        console.log("Insufficient Stock:", item.qty > availableQty);
-        console.log("================================================");
-
-        if (item.qty > availableQty) {
+        if (item.qty > line.availableQty) {
             throw new Error("INSUFFICIENT_STORE_STOCK");
         }
 
-        const rate = Number(qualityCheckProduct.purchaseRate ?? 0);
-
-        products.push({
-            qualityCheckProduct: new mongoose.Types.ObjectId(productId),
-            productName: qualityCheckProduct.productName,
+        return {
+            qualityCheckProduct: line.qualityCheckProduct,
+            productName: line.productName,
             transferredQty: item.qty,
-            availableQty: availableQty - item.qty,
-            rate,
-            total: item.qty * rate,
-        });
-    }
+            availableQty: line.availableQty - item.qty,
+            rate: line.rate,
+            total: item.qty * line.rate,
+        };
+    });
 
     return createIndianStoreStockTransfer({
         fromStore: new mongoose.Types.ObjectId(data.fromStore),
         toStore: new mongoose.Types.ObjectId(data.toStore),
         transferDate: data.transferDate ?? new Date(),
         products,
-        stockValue: products.reduce(
-            (sum, product) => sum + product.total,
-            0,
-        ),
     });
 };
-export const getIndianStoreStockTransferById = async (
-    id: string,
-) => {
+
+export const getIndianStoreStockTransferById = async (id: string) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
-        throw new Error(
-            "INDIAN_STORE_STOCK_TRANSFER_ID_INVALID",
-        );
+        throw new Error("INDIAN_STORE_STOCK_TRANSFER_ID_INVALID");
     }
 
-    const transfer =
-        await findIndianStoreStockTransferById(id);
+    const transfer = await findIndianStoreStockTransferById(id);
 
     if (!transfer) {
-        throw new Error(
-            "INDIAN_STORE_STOCK_TRANSFER_NOT_FOUND",
-        );
+        throw new Error("INDIAN_STORE_STOCK_TRANSFER_NOT_FOUND");
     }
 
     return transfer;
