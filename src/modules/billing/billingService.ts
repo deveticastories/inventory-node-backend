@@ -10,7 +10,7 @@ import {
     findBillingById,
     updateBillingById,
     softDeleteBillingById,
-    generateInvoiceNo,
+    generateInvoiceNo, updateBillingPaymentStatus
 } from "./billingRepository";
 import { round2 } from "../../utils/errorStatus";
 
@@ -56,7 +56,7 @@ const validateCustomer = async (customer: unknown) => {
     return new mongoose.Types.ObjectId(customer);
 };
 
-/** Builds invoice lines from UAE_MAIN STORE rows (style no, product, cost). */
+/** Builds invoice lines from UAE_MAIN STORE rows (style no, product, cost). */1111111111
 const prepareProducts = async (
     products: unknown,
 ): Promise<BillingProduct[]> => {
@@ -372,4 +372,66 @@ export const deleteBillingService = async (
     await restoreStock(toStockLines(existing.products));
 
     return billing;
+};
+interface UpdateBillingPaymentInput {
+    paidAmount: number;
+    paidStatus: "Fully Paid" | "Partial Paid";
+
+}
+
+export const updateBillingPaymentStatusService = async (
+    billingId: string,
+    paymentData: UpdateBillingPaymentInput,
+) => {
+    if (!mongoose.Types.ObjectId.isValid(billingId)) {
+        throw new Error("BILLING_ID_INVALID");
+    }
+
+    const enteredAmount = Number(paymentData.paidAmount);
+
+    if (!Number.isFinite(enteredAmount) || enteredAmount <= 0) {
+        throw new Error("PAYMENT_AMOUNT_INVALID");
+    }
+
+    const billing = await findBillingById(billingId);
+
+    if (!billing) {
+        throw new Error("BILLING_NOT_FOUND");
+    }
+
+    const currentBalance = Number(billing.balanceAmount ?? 0);
+    const currentPaidAmount = Number(billing.paidAmount ?? 0);
+
+    if (enteredAmount > currentBalance) {
+        throw new Error("PAYMENT_AMOUNT_EXCEEDS_BALANCE");
+    }
+
+    const round2 = (value: number) =>
+        Math.round((value + Number.EPSILON) * 100) / 100;
+
+    const newPaidAmount = round2(currentPaidAmount + enteredAmount);
+    const newBalanceAmount = round2(currentBalance - enteredAmount);
+
+    const expectedStatus =
+        newBalanceAmount === 0 ? "Fully Paid" : "Partial Paid";
+
+    if (paymentData.paidStatus !== expectedStatus) {
+        throw new Error("BILLING_PAYMENT_STATUS_INVALID");
+    }
+
+    const isPaid = expectedStatus === "Fully Paid";
+
+    const updatedBilling = await updateBillingPaymentStatus(
+        billingId,
+        currentBalance,
+        newPaidAmount,
+        newBalanceAmount,
+        isPaid,
+    );
+
+    if (!updatedBilling) {
+        throw new Error("BILLING_BALANCE_CHANGED");
+    }
+
+    return updatedBilling;
 };

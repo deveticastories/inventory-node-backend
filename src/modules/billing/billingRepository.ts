@@ -128,3 +128,36 @@ export const generateInvoiceNo = async (): Promise<string> => {
 
     return `INV-${String(lastNumber + 1).padStart(4, "0")}`;
 };
+export const updateBillingPaymentStatus = async (
+    id: string,
+    currentBalance: number,
+    newPaidAmount: number,
+    newBalanceAmount: number,
+    isPaid: boolean,
+): Promise<Billing | null> => {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        return null;
+    }
+
+    return BillingModel.findOneAndUpdate(
+        {
+            _id: new mongoose.Types.ObjectId(id),
+            isDeleted: false,
+            balanceAmount: currentBalance,
+        },
+        {
+            $set: {
+                paidAmount: newPaidAmount,
+                balanceAmount: newBalanceAmount,
+                isPaid,
+                paidStatus: isPaid ? "Fully Paid" : "Partial Paid",
+            },
+        },
+        {
+            new: true,
+            runValidators: true,
+        },
+    )
+        .populate("customer")
+        .populate("products.uaeMainStock");
+};

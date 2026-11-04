@@ -1,4 +1,3 @@
-
 import { Router } from "express";
 import {
     createBillingController,
@@ -6,6 +5,7 @@ import {
     getBillingByIdController,
     updateBillingController,
     deleteBillingController,
+    updateBillingPaymentStatusController,
 } from "./billingController";
 import verifyToken from "../../middleware/verifyToken";
 
@@ -83,8 +83,20 @@ router.use(verifyToken);
  *             netAmount:
  *               type: number
  *               readOnly: true
+ *             paidAmount:
+ *               type: number
+ *               readOnly: true
  *             balanceAmount:
  *               type: number
+ *               readOnly: true
+ *             isPaid:
+ *               type: boolean
+ *               readOnly: true
+ *             paidStatus:
+ *               type: string
+ *               enum:
+ *                 - Fully Paid
+ *                 - Partial Paid
  *               readOnly: true
  *             createdAt:
  *               type: string
@@ -194,7 +206,56 @@ router.post("/", createBillingController);
  *               $ref: '#/components/schemas/BillingPaginatedResponse'
  */
 router.get("/", getAllBillingsController);
-
+/**
+ * @swagger
+ * /api/billings/{id}/payment-status:
+ *   patch:
+ *     summary: Update billing payment status
+ *     tags: [Billings]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Billing document ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - paidAmount
+ *               - paidStatus
+ *             properties:
+ *               paidAmount:
+ *                 type: number
+ *                 minimum: 0.01
+ *                 example: 300
+ *                 description: Payment amount to add to the existing paid amount
+ *               paidStatus:
+ *                 type: string
+ *                 enum:
+ *                   - Fully Paid
+ *                   - Partial Paid
+ *                 example: Partial Paid
+ *                 description: Payment status based on the remaining balance
+ *     responses:
+ *       200:
+ *         description: Billing payment status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/BillingResponse'
+ *       400:
+ *         description: Invalid payment amount, invalid payment status, or payment exceeds balance
+ *       404:
+ *         description: Billing invoice not found
+ */
+router.patch("/:id/payment-status", updateBillingPaymentStatusController);
 /**
  * @swagger
  * /api/billings/{id}:

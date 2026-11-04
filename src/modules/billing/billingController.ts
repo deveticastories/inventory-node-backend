@@ -4,6 +4,8 @@ import type { RequestWithAuthData } from "../../@types/express";
 import { getErrorStatus as getCodeStatus } from "../../utils/errorStatus";
 import * as billingService from "./billingService";
 import logger from "../../utils/logger";
+import { message } from "../../constants/responseMessage";
+import { statusCode } from "../../constants/statusCode";
 
 const getErrorStatus = (error: unknown): number => {
     const errorMessage =
@@ -169,5 +171,28 @@ export const deleteBillingController = async (
         });
     } catch (error) {
         return handleError(res, error, "DELETE_BILLING_ERROR");
+    }
+};
+export const updateBillingPaymentStatusController = async (
+    req: Request,
+    res: Response,
+) => {
+    try {
+        const billing = await billingService.updateBillingPaymentStatusService(
+            String(req.params.id),
+            req.body,
+        );
+
+        return res.status(statusCode.OK).json({
+            success: true,
+            message: message.BILLING_PAYMENT_STATUS_UPDATED,
+            data: billing,
+        });
+    } catch (error) {
+        return handleError(
+            res,
+            error,
+            "UPDATE_BILLING_PAYMENT_STATUS_ERROR",
+        );
     }
 };

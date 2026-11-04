@@ -1,30 +1,18 @@
 import { z } from "zod";
 
 export const createVendorValidation = z.object({
-  vendorName: z.string().trim().min(1, "Vendor name is required"),
+    vendorName: z.string().trim().min(1, "Vendor name is required"),
 
-  contactNo: z
-    .string()
-    .trim()
-    .min(10, "Contact number must be at least 10 digits")
-    .max(15, "Contact number cannot exceed 15 digits")
-    .regex(/^[+]?[0-9]+$/, "Invalid contact number"),
+    contactNo: z.string(),
 
-  bankName: z.string().trim().optional().default(""),
+    bankName: z.string(),
 
-  accountNo: z.string().trim().optional().default(""),
+    accountNo: z.string(),
 
-  ifsc: z
-    .string()
-    .trim()
-    .regex(/^([A-Za-z]{4}0[A-Za-z0-9]{6})?$/, "Invalid IFSC code")
-    .transform((value) => value.toUpperCase())
-    .optional()
-    .default(""),
+    ifsc: z.string(),
 });
 
-export const updateVendorValidation = createVendorValidation
-  .partial();
+export const updateVendorValidation = createVendorValidation.partial();
 
 export type CreateVendorInput = z.infer<typeof createVendorValidation>;
 export type UpdateVendorInput = z.infer<typeof updateVendorValidation>;

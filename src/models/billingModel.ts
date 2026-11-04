@@ -1,6 +1,7 @@
-
 import mongoose, { Schema, type Document } from "mongoose";
 import { BaseDocument, BaseSchema } from "./baseModel";
+
+export type PaidStatus = "Fully Paid" | "Partial Paid";
 
 export interface BillingProduct {
     _id?: mongoose.Types.ObjectId;
@@ -24,6 +25,9 @@ export interface Billing extends BaseDocument {
     netAmount: number;
     receivedAmount: number;
     balanceAmount: number;
+    isPaid: boolean;
+    paidStatus: PaidStatus;
+    paidAmount: number;
 }
 
 export type BillingDocument = Billing & Document;
@@ -136,6 +140,21 @@ const BillingSchema = new Schema<BillingDocument>(
             required: true,
             min: 0,
             default: 0,
+        },
+        isPaid: {
+            type: Boolean,
+            default: false,
+            required: true,
+        },
+        paidStatus: {
+            type: String,
+            enum: ["Fully Paid", "Partial Paid"],
+            default: "Partial Paid",
+        },
+        paidAmount: {
+            type: Number,
+            default: 0,
+            min: 0,
         },
     },
     { timestamps: true },

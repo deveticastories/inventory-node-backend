@@ -145,7 +145,7 @@ export const message = {
     STORE_TYPE_INVALID: "Invalid store type",
     ONLY_ONE_STORE_FILTER_ALLOWED:
         "Only one store filter is allowed at a time",
-
+    BILLING_PAYMENT_STATUS_UPDATED: "Billing payment status updated successfully",
     STOCK_TRANSFER_NOT_FOUND: "Stock transfer not found",
     STOCK_TRANSFER_ID_REQUIRED: "Stock transfer ID is required",
     STOCK_TRANSFER_ID_INVALID: "Invalid stock transfer ID",

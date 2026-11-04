@@ -16,9 +16,7 @@ export const createVendor = async (
     vendorData.contactNo,
   );
 
-  if (existingContact) {
-    throw new Error("A vendor with this contact number already exists");
-  }
+
 
   return vendorRepo.create(vendorData);
 };
@@ -70,17 +68,6 @@ export const editVendor = async (
 ): Promise<VendorDocument | null> => {
   if (!mongoose.isValidObjectId(id)) {
     throw new Error("Invalid vendor ID");
-  }
-
-  if (updateData.contactNo) {
-    const existingContact = await vendorRepo.findByContactNo(
-      updateData.contactNo,
-      id,
-    );
-
-    if (existingContact) {
-      throw new Error("A vendor with this contact number already exists");
-    }
   }
 
   return vendorRepo.updateById(id, updateData);
