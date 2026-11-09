@@ -11,6 +11,7 @@ interface QualityCheckProductInput {
 interface QualityCheckInput {
     purchaseEntry: string;
     products: QualityCheckProductInput[];
+    checkedByName: string;
 }
 
 interface PurchaseProduct {
@@ -39,6 +40,15 @@ export const createOrUpdateQualityCheckService = async (
 
     if (!mongoose.Types.ObjectId.isValid(checkedBy)) {
         throw new Error("Invalid user ID");
+    }
+
+    const checkedByName =
+        typeof data.checkedByName === "string"
+            ? data.checkedByName.trim()
+            : "";
+
+    if (!checkedByName) {
+        throw new Error("Checked by name is required");
     }
 
     if (!Array.isArray(data.products) || data.products.length === 0) {
@@ -176,6 +186,7 @@ export const createOrUpdateQualityCheckService = async (
         availableQtyAfterQC,
         payableAfterQC,
         checkedBy: new mongoose.Types.ObjectId(checkedBy),
+        checkedByName,
     };
 
     const existingQC =
@@ -239,6 +250,7 @@ const formatQualityCheck = (qualityCheck: any) => {
             totalIncludingGST: purchaseEntry?.totalIncludingGST,
         },
         checkedBy: qualityCheck.checkedBy,
+        checkedByName: qualityCheck.checkedByName ?? "",
         checkedAt: qualityCheck.createdAt,
         summary: {
             totalApprovedQty: qualityCheck.totalApprovedQty,

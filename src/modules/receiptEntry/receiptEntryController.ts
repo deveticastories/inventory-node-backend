@@ -50,6 +50,10 @@ const getErrorResponse = (error: unknown) => {
             status: statusCode.BAD_REQUEST,
             message: message.RECEIPT_ENTRY_EDIT_NOT_ALLOWED,
         },
+        RECEIPT_DATE_INVALID: {
+            status: statusCode.BAD_REQUEST,
+            message: message.RECEIPT_DATE_INVALID,
+        },
     };
 
     const status = getErrorStatus(error);

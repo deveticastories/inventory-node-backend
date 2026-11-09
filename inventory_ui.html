@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>StockLink Inventory</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--ink:#1c2333;--mut:#667085;--line:#e4e8f0;--pri:#3b4fd8;--pri2:#e9ecff;--ok:#12805c;--okbg:#e3f6ee;--warn:#b54708;--warnbg:#fff1e0;--bad:#c0262d;--badbg:#fde8e9;--side:#161b2e}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 "Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+.app{display:flex;min-height:100vh}
+aside{width:240px;background:var(--side);color:#c9d0e8;padding:16px 12px;position:sticky;top:0;height:100vh;overflow:auto;flex-shrink:0}
+.brand{font-size:19px;font-weight:700;color:#fff;padding:6px 10px 14px;letter-spacing:.3px}
+.brand span{color:#8fa0ff}
+.ng{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#6f7ba3;margin:14px 10px 4px}
+.ni{display:block;padding:8px 10px;border-radius:8px;cursor:pointer;color:#c9d0e8}
+.ni:hover{background:#232a45}.ni.on{background:var(--pri);color:#fff}
+main{flex:1;min-width:0}
+header.top{display:flex;align-items:center;gap:12px;padding:12px 24px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+header.top .sp{flex:1}
+.pill{background:var(--pri2);color:var(--pri);padding:4px 10px;border-radius:99px;font-size:12px;font-weight:600}
+#view{padding:22px 24px 60px;max-width:1280px}
+.ph{display:flex;align-items:flex-end;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.ph h1{margin:0;font-size:22px}.ph p{margin:2px 0 0;color:var(--mut)}.ph .sp{flex:1}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+.card h3{margin:0 0 12px;font-size:15px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.f label{display:block;font-size:12px;font-weight:600;color:var(--mut);margin-bottom:4px}
+.inp,select.inp,textarea.inp{width:100%;padding:8px 10px;border:1px solid #cfd6e4;border-radius:8px;background:#fff;font:inherit;color:var(--ink)}
+.inp:focus{outline:2px solid #b9c2ff;border-color:var(--pri)}
+.inp[readonly]{background:#f1f3f8;color:var(--mut)}
+.btn{background:var(--pri);color:#fff;border:0;padding:8px 14px;border-radius:8px;font:inherit;font-weight:600;cursor:pointer}
+.btn:hover{filter:brightness(1.08)}.btn:disabled{background:#c5cad8;cursor:not-allowed;filter:none}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid #cfd6e4}
+.btn.ok{background:var(--ok)}.btn.red{background:var(--bad)}.btn.sm{padding:4px 10px;font-size:12px}
+.row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.row>.f{flex:1;min-width:140px}
+.tw{overflow:auto;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;background:#fff}
+th{background:#f6f8fc;text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut);padding:9px 12px;white-space:nowrap}
+td{padding:9px 12px;border-top:1px solid var(--line);vertical-align:middle}
+tr:hover td{background:#fafbff}
+td.empty{text-align:center;color:var(--mut);padding:24px}
+td input.inp{padding:5px 8px;width:90px}
+.stats{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin-bottom:16px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}
+.stat small{color:var(--mut);display:block}.stat b{font-size:20px}
+.stat.warn b{color:var(--bad)}.stat.good b{color:var(--ok)}
+.tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.tab{padding:7px 14px;border-radius:99px;border:1px solid #cfd6e4;background:#fff;cursor:pointer;font-weight:600;color:var(--mut)}
+.tab.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+.badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:600}
+.b-ok{background:var(--okbg);color:var(--ok)}.b-w{background:var(--warnbg);color:var(--warn)}.b-bad{background:var(--badbg);color:var(--bad)}
+.toolbar{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap}.toolbar .inp{max-width:260px}
+.combo{position:relative}
+.cb-list{display:none;position:absolute;left:0;right:0;top:100%;z-index:60;background:#fff;border:1px solid #cfd6e4;border-radius:8px;max-height:220px;overflow:auto;box-shadow:0 8px 24px rgba(20,30,70,.15);margin-top:2px}
+.cb-opt{padding:8px 10px;cursor:pointer}.cb-opt:hover{background:var(--pri2)}.cb-empty{padding:8px 10px;color:var(--mut)}
+.ov{position:fixed;inset:0;background:rgba(15,20,40,.5);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:6vh 16px;overflow:auto}
+.dlg{background:#fff;border-radius:14px;width:min(720px,100%);box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.dh{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)}.dh h3{margin:0}
+.x{border:0;background:none;font-size:24px;cursor:pointer;color:var(--mut)}
+.db{padding:18px}.df{padding:12px 18px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
+#toast{position:fixed;right:20px;bottom:20px;background:#1c2333;color:#fff;padding:10px 16px;border-radius:10px;opacity:0;transform:translateY(10px);transition:.25s;z-index:99;pointer-events:none}
+#toast.show{opacity:1;transform:none}
+.link{color:var(--pri);font-weight:600;cursor:pointer}.link:hover{text-decoration:underline}
+.note{background:var(--warnbg);color:var(--warn);padding:9px 12px;border-radius:8px;margin-bottom:12px}
+.info{background:var(--pri2);color:var(--pri);padding:9px 12px;border-radius:8px;margin-bottom:12px}
+.tot{display:flex;gap:24px;justify-content:flex-end;padding:10px 4px;font-weight:600;flex-wrap:wrap}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.flow span{background:#fff;border:1px solid var(--line);padding:6px 12px;border-radius:99px}.flow i{color:var(--mut);font-style:normal}
+.mut{color:var(--mut)}
+.pw{position:relative}.pw button{position:absolute;right:6px;top:4px;border:0;background:none;cursor:pointer;color:var(--pri);font-weight:600}
+@media(max-width:860px){aside{display:none}#view{padding:14px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside id="side"></aside>
+  <main>
+    <header class="top"><b id="crumb">Dashboard</b><span class="sp"></span><span class="pill">IND ⇄ UAE Inventory</span><button class="btn ghost sm" onclick="resetDemo()">Reset demo data</button></header>
+    <section id="view"></section>
+  </main>
+</div>
+<div id="modal"></div><div id="toast"></div>
+
+<script>
+/* ============ helpers ============ */
+const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nf=n=>Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+const I=n=>'₹ '+nf(n),A=n=>'AED '+nf(n);
+const today=()=>new Date().toISOString().slice(0,10);
+const uid=()=>Math.random().toString(36).slice(2,9);
+const val=id=>{const e=document.getElementById(id);return e?e.value.trim():''};
+const nv=id=>parseFloat(val(id))||0;
+const sum=(a,f)=>a.reduce((s,x)=>s+f(x),0);
+function toast(m){const t=$('#toast');t.textContent=m;t.className='show';clearTimeout(toast.t);toast.t=setTimeout(()=>t.className='',2400)}
+function modal(t,body,foot){$('#modal').innerHTML=`<div class="ov" onmousedown="if(event.target==this)closeM()"><div class="dlg"><div class="dh"><h3>${t}</h3><button class="x" onclick="closeM()">×</button></div><div class="db">${body}</div>${foot?`<div class="df">${foot}</div>`:''}</div></div>`}
+function closeM(){$('#modal').innerHTML=''}
+function confirmBox(msg,yes){window._yes=yes;modal('Please confirm',`<p style="margin:0">${msg}</p>`,`<button class="btn ghost" onclick="closeM()">No</button><button class="btn" onclick="closeM();_yes()">Yes</button>`)}
+const badge=(t,k)=>`<span class="badge b-${k}">${t}</span>`;
+const fld=(l,inner,extra='')=>`<div class="f" ${extra}><label>${l}</label>${inner}</div>`;
+function table(head,rows,empty){return `<div class="tw"><table><thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.length?rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${head.length}" class="empty">${empty||'No records yet'}</td></tr>`}</tbody></table></div>`}
+const txt=h=>{const t=document.createElement('div');t.innerHTML=h;return t.textContent};
+function printDoc(title,head,rows,extra){const w=window.open('','_blank');if(!w){toast('Allow pop-ups to download / print');return}
+ w.document.write(`<html><head><title>${esc(title)}</title><style>body{font-family:Arial,sans-serif;padding:26px;color:#111}h2{margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:14px;font-size:12px}th,td{border:1px solid #999;padding:6px 8px;text-align:left}th{background:#eee}.m{font-size:12px;color:#555}</style></head><body><h2>StockLink — ${esc(title)}</h2><div class="m">Generated ${new Date().toLocaleString()}</div>${extra||''}<table><thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${esc(txt(c))}</td>`).join('')}</tr>`).join('')}</tbody></table><script>onload=()=>print()<\/script></body></html>`);w.document.close()}
+
+/* searchable dropdown */
+const COMBO={};
+function combo(id,opts,ph,onChange,v){COMBO[id]={opts,val:v||'',onChange};const c=opts.find(o=>o.v==v);return `<div class="combo" id="cb_${id}"><input class="inp" autocomplete="off" placeholder="${ph||'Select…'}" value="${c?esc(c.l):''}" data-cb="${id}"><div class="cb-list"></div></div>`}
+function openCb(id,q){const c=COMBO[id],box=$('#cb_'+id+' .cb-list');if(!c||!box)return;const r=c.opts.filter(o=>o.l.toLowerCase().includes(q.toLowerCase()));box.innerHTML=r.map(o=>`<div class="cb-opt" data-id="${id}" data-v="${esc(o.v)}">${esc(o.l)}</div>`).join('')||'<div class="cb-empty">No match</div>';box.style.display='block'}
+document.addEventListener('input',e=>{const id=e.target.dataset&&e.target.dataset.cb;if(id)openCb(id,e.target.value)});
+document.addEventListener('focusin',e=>{const id=e.target.dataset&&e.target.dataset.cb;if(id){e.target.select();openCb(id,'')}});
+document.addEventListener('mousedown',e=>{const o=e.target.closest('.cb-opt');
+ if(o){const c=COMBO[o.dataset.id];c.val=o.dataset.v;$('#cb_'+o.dataset.id+' input').value=o.textContent;if(c.onChange)c.onChange(c.val)}
+ $$('.cb-list').forEach(l=>{if(o||!l.parentNode.contains(e.target))l.style.display='none'})});
+const cv=id=>COMBO[id]?COMBO[id].val:'';
+
+/* generic list: search + sort + pdf */
+const DATA={};
+function tblHtml(id){const d=DATA[id]();return table(d.head,d.rows,d.empty)}
+function listBlock(id,ph,sorts,reg){DATA[id]=reg;const f=S.f[id]||(S.f[id]={q:'',s:sorts&&sorts[0]?sorts[0][0]:''});
+ return `<div class="toolbar">${ph?`<input class="inp" placeholder="${ph}" value="${esc(f.q)}" oninput="setF('${id}','q',this.value)">`:''}${sorts&&sorts.length?`<select class="inp" onchange="setF('${id}','s',this.value)">${sorts.map(s=>`<option value="${s[0]}" ${f.s==s[0]?'selected':''}>${s[1]}</option>`).join('')}</select>`:''}<button class="btn ghost" onclick="pdfOf('${id}')">⬇ Download PDF</button></div><div id="tbl_${id}">${tblHtml(id)}</div>`}
+function setF(id,k,v){S.f[id][k]=v;$('#tbl_'+id).innerHTML=tblHtml(id)}
+function pdfOf(id){const d=DATA[id]();printDoc(d.title,d.head,d.rows)}
+const F=id=>S.f[id]||{q:'',s:''};
+const hit=(q,...a)=>!q||a.some(x=>String(x).toLowerCase().includes(q.toLowerCase()));
+
+/* ============ data ============ */
+let DB;try{DB=JSON.parse(localStorage.getItem('stocklink_db'))}catch(e){}
+if(!DB)DB=seed();
+const save=()=>{try{localStorage.setItem('stocklink_db',JSON.stringify(DB))}catch(e){}};
+const nextNo=(k,p)=>p+String(DB.seq[k]+1).padStart(4,'0');
+const bump=k=>{DB.seq[k]++;save()};
+function resetDemo(){confirmBox('Reset everything to the demo data?',()=>{DB=seed();save();S.pur=null;S.pk=null;S.bill=null;S.pkOpen=S.billOpen=false;go('dash');toast('Demo data restored')})}
+function seed(){const d=n=>{const x=new Date();x.setDate(x.getDate()-n);return x.toISOString().slice(0,10)};
+ return{seq:{pur:3,pay:1,rec:0,bill:0,pack:0,ret:0},set:{ex:22.7,profit:25},
+ staff:[{id:'s1',name:'Anil Kumar',mobile:'9895012345',emp:'EMP001',user:'anil@stocklink.in',pass:'admin123',type:'Admin'},{id:'s2',name:'Rasheed P',mobile:'9847022222',emp:'EMP002',user:'rasheed',pass:'bill@123',type:'Biller'},{id:'s3',name:'Divya S',mobile:'9946033333',emp:'EMP003',user:'divya',pass:'buy@123',type:'Purchaser'}],
+ vendors:[{id:'v1',name:'Sree Textiles',contact:'9847011111',bank:'SBI',acc:'3021456789',ifsc:'SBIN0000123'},{id:'v2',name:'Malabar Garments',contact:'9744055555',bank:'HDFC',acc:'50100234567',ifsc:'HDFC0001234'},{id:'v3',name:'Kochi Accessories',contact:'9633066666',bank:'Federal',acc:'1234500011',ifsc:'FDRL0001001'}],
+ stores:[{id:'t1',name:'TRP_MAIN STORE',loc:'IND',contact:'0484 2301234',inch:'s3'},{id:'t2',name:'TRP_SAMPLE STORE',loc:'IND',contact:'0484 2301235',inch:'s3'},{id:'t3',name:'UAE_MAIN STORE',loc:'UAE',contact:'+971 4 555 0101',inch:'s2'},{id:'t4',name:'UAE_RETURN STORE',loc:'UAE',contact:'+971 4 555 0102',inch:'s2'}],
+ purchases:[
+  {inv:'PUR-0001',date:d(20),vendor:'v1',gst:84000,qc:true,qcBy:'Divya S',items:[{id:'i1',name:'Cotton Kurti',qty:100,rate:350,damage:5,locked:true,toSample:0,packed:0},{id:'i2',name:'Denim Jacket',qty:50,rate:900,damage:2,locked:true,toSample:0,packed:0}]},
+  {inv:'PUR-0002',date:d(6),vendor:'v2',gst:25200,qc:false,qcBy:'',items:[{id:'i3',name:'Silk Scarf',qty:200,rate:120,damage:0,locked:false,toSample:0,packed:0}]},
+  {inv:'PUR-0003',date:d(12),vendor:'v1',gst:30240,qc:true,qcBy:'Divya S',items:[{id:'i4',name:'Cotton Kurti',qty:80,rate:360,damage:0,locked:true,toSample:0,packed:0}]}],
+ packings:[],returns:[],
+ uaeMain:[{id:'u1',style:'ST-101',product:'Cotton Kurti',qty:40,cost:17.2,price:21.5,date:d(3)},{id:'u2',style:'ST-102',product:'Denim Jacket',qty:25,cost:44.9,price:56.1,date:d(3)}],
+ uaeReturn:[],
+ customers:[{id:'c1',name:'Al Noor Boutique',contact:'+971 50 111 2222',wa:'+971 50 111 2222',addr:'Deira, Dubai',email:'alnoor@mail.ae'},{id:'c2',name:'Gulf Fashion LLC',contact:'+971 55 333 4444',wa:'+971 55 333 4444',addr:'Sharjah',email:'info@gulffashion.ae'}],
+ bills:[],
+ expenses:[{id:'e1',date:d(5),type:'Freight',mode:'Account',amount:3500,desc:'Local transport to godown',packing:''},{id:'e2',date:d(4),type:'Packing material',mode:'Cash',amount:1800,desc:'Cartons & tape',packing:''},{id:'e3',date:d(2),type:'Labour',mode:'Upi',amount:1200,desc:'Loading',packing:''}],
+ payments:[{no:'PAY-0001',date:d(15),inv:'PUR-0001',vendor:'v1',payable:80000-0,paid:50000,balance:30000}],receipts:[]};}
+
+const V=id=>DB.vendors.find(v=>v.id==id)||{name:'—'};
+const C=id=>DB.customers.find(c=>c.id==id)||{name:'—'};
+const SF=id=>DB.staff.find(s=>s.id==id)||{name:'—'};
+const pTot=p=>sum(p.items,i=>i.qty*i.rate),pQty=p=>sum(p.items,i=>i.qty);
+const pPay=p=>{const t=pTot(p);return p.qc&&t?sum(p.items,i=>(i.qty-i.damage)*i.rate)*(p.gst/t):0};
+const pPaid=p=>sum(DB.payments.filter(x=>x.inv==p.inv),x=>x.paid);
+const pBal=p=>pPay(p)-pPaid(p);
+const vOut=id=>sum(DB.purchases.filter(p=>p.vendor==id&&p.qc),pBal);
+const bTot=b=>sum(b.lines,l=>l.qty*l.price),bRet=b=>sum(DB.uaeReturn.filter(r=>r.inv==b.no),r=>r.retQty*r.price),bNet=b=>bTot(b)-bRet(b);
+const bRec=b=>sum(DB.receipts.filter(r=>r.inv==b.no),r=>r.recd),bBal=b=>bNet(b)-bRec(b);
+const cOut=id=>sum(DB.bills.filter(b=>b.cust==id),bBal);
+function mainLines(){const r=[];DB.purchases.filter(p=>p.qc).forEach(p=>p.items.forEach(i=>{const ap=i.qty-i.damage;r.push({p,i,inv:p.inv,date:p.date,vendorId:p.vendor,vendor:V(p.vendor).name,name:i.name,pq:ap,avail:ap-i.toSample-i.packed,rate:i.rate})}));return r}
+const availPV=(name,vid)=>sum(mainLines().filter(l=>l.name==name&&l.vendorId==vid),l=>l.avail);
+const trCalc=pk=>{const ex=DB.set.ex||1,add=pk.salary+sum(DB.expenses.filter(e=>e.packing==pk.id),e=>e.amount),n=pk.lines.length||1,rec=add/ex/n;return{add,rec,rows:pk.lines.map(l=>({l,unit:l.rate,aed:l.rate/ex,upd:l.rate/ex+rec}))}};
+
+/* ============ shell ============ */
+const NAV=[['Overview',[['dash','Dashboard']]],['Masters',[['staff','Staff'],['vendors','Vendors'],['stores','Stores'],['customers','Customer Master']]],['Purchase',[['purchase','Item Master'],['qc','Quality Check'],['pdata','Purchase Data']]],['India',[['ind','IND Store Stock'],['packing','Packing List'],['transit','Transit']]],['UAE',[['uae','UAE Store Stock'],['billing','Billing']]],['Finance',[['exp','Daily Expenses'],['pay','Payment Entry'],['rec','Receipt Entry']]],['Analysis',[['reports','Reports']]]];
+const S={page:'dash',f:{},vend:null,cust:null,tab:{ind:'main',uae:'main'},rep:'purchase',pkOpen:false,pk:null,pur:null,qcInv:'',pdInv:'',billOpen:false,bill:null,payOpen:false,recOpen:false,lastPay:null,lastRec:null,fin:{}};
+const PAGES={};
+function nav(){$('#side').innerHTML=`<div class="brand">Stock<span>Link</span></div>`+NAV.map(g=>`<div class="ng">${g[0]}</div>`+g[1].map(i=>`<div class="ni ${S.page==i[0]?'on':''}" onclick="go('${i[0]}')">${i[1]}</div>`).join('')).join('')}
+function go(p){S.page=p;if(p!='vendors')S.vend=null;if(p!='customers')S.cust=null;nav();const n=NAV.flatMap(g=>g[1]).find(i=>i[0]==p);$('#crumb').textContent=n?n[1]:'';PAGES[p]();window.scrollTo(0,0)}
+const view=(t,sub,html,act)=>{$('#view').innerHTML=`<div class="ph"><div><h1>${t}</h1><p>${sub||''}</p></div><span class="sp"></span>${act||''}</div>${html}`};
+const stat=(l,v,k)=>`<div class="stat ${k||''}"><small>${l}</small><b>${v}</b></div>`;
+const rerender=()=>PAGES[S.page]();
+
+/* ============ Dashboard ============ */
+PAGES.dash=()=>{const ml=mainLines(),indVal=sum(ml,l=>l.avail*l.rate),uaeVal=sum(DB.uaeMain,u=>u.qty*u.cost);
+ view('Dashboard','Quick view of purchasing, stock, sales and cash',
+ `<div class="stats">${stat('Vendor outstanding',I(sum(DB.vendors,v=>vOut(v.id))),'warn')}${stat('Customer outstanding',A(sum(DB.customers,c=>cOut(c.id))),'warn')}${stat('IND main stock value',I(indVal))}${stat('UAE main stock value',A(uaeVal))}${stat('Sales (net)',A(sum(DB.bills,bNet)),'good')}${stat('Expenses booked',I(sum(DB.expenses,e=>e.amount)))}</div>
+ <div class="card"><h3>Workflow</h3><div class="flow"><span>Vendor</span><i>→</i><span>Purchase invoice</span><i>→</i><span>Quality check</span><i>→</i><span>TRP Main store</span><i>→</i><span>Packing list</span><i>→</i><span>Transit</span><i>→</i><span>UAE Main store</span><i>→</i><span>Billing</span><i>→</i><span>Receipt</span></div></div>
+ <div class="card"><h3>Pending actions</h3>${table(['Item','Count','Go to'],[['Purchase invoices waiting for QC',DB.purchases.filter(p=>!p.qc).length,`<span class="link" onclick="go('qc')">Quality Check</span>`],['Vendor invoices with balance',DB.purchases.filter(p=>p.qc&&pBal(p)>0.5).length,`<span class="link" onclick="go('pay')">Payment Entry</span>`],['Customer invoices with balance',DB.bills.filter(b=>bBal(b)>0.5).length,`<span class="link" onclick="go('rec')">Receipt Entry</span>`],['Expenses not attached to a packing list',DB.expenses.filter(e=>!e.packing).length,`<span class="link" onclick="go('packing')">Packing List</span>`]])}</div>`)};
+
+/* ============ Staff ============ */
+PAGES.staff=()=>view('Staff','Create and manage staff logins',
+ `<div class="card"><h3>Create staff</h3><div class="grid">${fld('Staff name','<input class="inp" id="sn">')}${fld('Staff mobile no','<input class="inp" id="sm" inputmode="tel">')}${fld('Employee ID','<input class="inp" id="se">')}${fld('Email / Username','<input class="inp" id="su">')}${fld('Password','<div class="pw"><input class="inp" id="sp" type="password"><button type="button" onclick="const e=$(\'#sp\');e.type=e.type==\'password\'?\'text\':\'password\'">Show</button></div>')}${fld('Employee type',`<select class="inp" id="st"><option value="">Select…</option><option>Admin</option><option>Biller</option><option>Purchaser</option></select>`)}</div><div style="margin-top:14px"><button class="btn" onclick="saveStaff()">Create staff</button></div></div>
+ <div class="card"><h3>All staff</h3>${table(['Employee ID','Name','Mobile','Email / Username','Type',''],DB.staff.map(s=>[esc(s.emp),esc(s.name),esc(s.mobile),esc(s.user),badge(s.type,s.type=='Admin'?'bad':s.type=='Biller'?'ok':'w'),`<button class="btn ghost sm" onclick="delStaff('${s.id}')">Remove</button>`]))}</div>`);
+function saveStaff(){const s={id:uid(),name:val('sn'),mobile:val('sm'),emp:val('se'),user:val('su'),pass:val('sp'),type:val('st')};
+ if(Object.values(s).some(x=>!x))return toast('Fill all staff fields');if(DB.staff.some(x=>x.emp==s.emp))return toast('Employee ID already exists');
+ DB.staff.push(s);save();toast('Staff created');PAGES.staff()}
+const delStaff=id=>confirmBox('Remove this staff member?',()=>{DB.staff=DB.staff.filter(s=>s.id!=id);save();PAGES.staff()});
+
+/* ============ Vendors ============ */
+PAGES.vendors=()=>{if(S.vend)return vendorDetail(S.vend);
+ view('Vendors','Vendor master with outstanding balances',
+ `<div class="card"><h3>Add vendor</h3><div class="grid">${fld('Vendor name','<input class="inp" id="vn">')}${fld('Contact no','<input class="inp" id="vc">')}${fld('Bank name','<input class="inp" id="vb">')}${fld('Account no','<input class="inp" id="va">')}${fld('IFSC','<input class="inp" id="vi">')}</div><div style="margin-top:14px"><button class="btn" onclick="saveVendor()">Save vendor</button></div></div>
+ <div class="card"><h3>Vendor list</h3>${table(['Vendor','Contact','Bank / Account','Outstanding'],DB.vendors.map(v=>[`<span class="link" onclick="S.vend='${v.id}';rerender()">${esc(v.name)}</span>`,esc(v.contact),esc(v.bank)+' · '+esc(v.acc),`<b style="color:${vOut(v.id)>0.5?'var(--bad)':'var(--ok)'}">${I(vOut(v.id))}</b>`]))}</div>`)};
+function saveVendor(){const v={id:uid(),name:val('vn'),contact:val('vc'),bank:val('vb'),acc:val('va'),ifsc:val('vi')};if(!v.name||!v.contact)return toast('Vendor name and contact are required');DB.vendors.push(v);save();toast('Vendor saved');PAGES.vendors()}
+function vendorDetail(id){const v=V(id),ps=DB.purchases.filter(p=>p.vendor==id).sort((a,b)=>b.date.localeCompare(a.date));
+ const led=[];ps.filter(p=>p.qc).forEach(p=>led.push({d:p.date,t:'Payable after QC',ref:p.inv,cr:pPay(p),dr:0}));DB.payments.filter(x=>x.vendor==id).forEach(x=>led.push({d:x.date,t:'Payment',ref:x.no+' ('+x.inv+')',cr:0,dr:x.paid}));led.sort((a,b)=>a.d.localeCompare(b.d));let run=0;
+ view(esc(v.name),'Vendor details & payment history',
+ `<div class="card"><div class="grid"><div><small class="mut">Contact</small><br><b>${esc(v.contact)}</b></div><div><small class="mut">Bank</small><br><b>${esc(v.bank)}</b></div><div><small class="mut">Account no / IFSC</small><br><b>${esc(v.acc)} · ${esc(v.ifsc)}</b></div><div><small class="mut">Outstanding amount</small><br><b style="font-size:20px;color:var(--bad)">${I(vOut(id))}</b></div></div></div>
+ <div class="card"><h3>Last purchase details</h3>${table(['Invoice no','Date','Invoice amount','Paid amount','Balance amount','Status'],ps.map(p=>[p.inv,p.date,I(p.qc?pPay(p):p.gst),I(pPaid(p)),p.qc?I(pBal(p)):'—',p.qc?badge('QC done','ok'):badge('QC pending','w')]))}</div>
+ <div class="card"><h3>Payment history</h3>${table(['Date','Entry','Reference','Payable (+)','Paid (−)','Running outstanding'],led.map(l=>{run+=l.cr-l.dr;return[l.d,l.t,esc(l.ref),l.cr?I(l.cr):'',l.dr?I(l.dr):'',I(run)]}))}</div>`,
+ `<button class="btn ghost" onclick="S.vend=null;rerender()">← All vendors</button>`)}
+
+/* ============ Stores ============ */
+PAGES.stores=()=>{const inch=DB.staff.filter(s=>s.type!='Admin');
+ view('Stores','Create stores in India or UAE',
+ `<div class="card"><h3>Create store</h3><div class="grid">${fld('Store name','<input class="inp" id="tn">')}${fld('Store location',`<select class="inp" id="tl"><option value="">Select…</option><option>IND</option><option>UAE</option></select>`)}${fld('Contact no','<input class="inp" id="tc">')}${fld('In charge (Biller / Purchaser)',`<select class="inp" id="ti"><option value="">Select…</option>${inch.map(s=>`<option value="${s.id}">${esc(s.name)} — ${s.type}</option>`).join('')}</select>`)}</div><div style="margin-top:14px"><button class="btn" onclick="saveStore()">Create store</button></div></div>
+ <div class="card"><h3>Stores</h3>${table(['Store','Location','Contact','In charge'],DB.stores.map(t=>[`<b>${esc(t.name)}</b>`,badge(t.loc,t.loc=='IND'?'w':'ok'),esc(t.contact),esc(SF(t.inch).name)]))}</div>`)};
+function saveStore(){const t={id:uid(),name:val('tn'),loc:val('tl'),contact:val('tc'),inch:val('ti')};if(Object.values(t).some(x=>!x))return toast('Fill all store fields');DB.stores.push(t);save();toast('Store created');PAGES.stores()}
+
+/* ============ Item Master / Purchase ============ */
+const newPur=()=>({date:today(),vendor:'',items:[],gst:''});
+PAGES.purchase=()=>{S.pur=S.pur||newPur();const p=S.pur;
+ view('Item Master — Purchase Entry','Create a purchase invoice with multiple products',
+ `<div class="card"><div class="grid">${fld('Invoice no (auto)',`<input class="inp" readonly value="${nextNo('pur','PUR-')}">`)}${fld('Purchase date',`<input class="inp" type="date" value="${p.date}" onchange="S.pur.date=this.value">`)}${fld('Vendor name',combo('pv',DB.vendors.map(v=>({v:v.id,l:v.name})),'Search vendor…',v=>S.pur.vendor=v,p.vendor))}</div></div>
+ <div class="card"><h3>Product entry</h3><div class="row">${fld('Product name','<input class="inp" id="pn" placeholder="e.g. Cotton Kurti">')}${fld('Purchase qty','<input class="inp" id="pq" type="number" min="1">')}${fld('Purchase rate per pc (₹)','<input class="inp" id="pr" type="number" min="0" step="0.01">')}<div><button class="btn" onclick="addPurItem()">+ Add</button></div></div><div id="purItems" style="margin-top:14px"></div></div>
+ <div class="card"><h3>Recent invoices</h3>${table(['Invoice','Date','Vendor','Qty','Amount','Incl. GST','QC'],DB.purchases.slice().reverse().map(x=>[x.inv,x.date,esc(V(x.vendor).name),pQty(x),I(pTot(x)),I(x.gst),x.qc?badge('Done','ok'):badge('Pending','w')]))}</div>`);purItems()};
+function purItems(){const p=S.pur,t=sum(p.items,i=>i.qty*i.rate);$('#purItems').innerHTML=table(['#','Product','Qty','Rate / pc','Amount',''],p.items.map((i,k)=>[k+1,esc(i.name),i.qty,I(i.rate),I(i.qty*i.rate),`<button class="btn ghost sm" onclick="S.pur.items.splice(${k},1);purItems()">Remove</button>`]),'No products added')+
+ `<div class="tot"><span>Total product qty: ${sum(p.items,i=>i.qty)}</span><span>Total amount: ${I(t)}</span></div>
+ <div class="row" style="justify-content:flex-end">${fld('Total including GST (₹)',`<input class="inp" id="pg" type="number" step="0.01" value="${p.gst}" placeholder="${t?t.toFixed(2):''}" oninput="S.pur.gst=this.value">`,'style="max-width:240px;flex:none"')}<div><button class="btn ok" onclick="savePur()">Save invoice</button></div></div>`}
+function addPurItem(){const n=val('pn'),q=nv('pq'),r=nv('pr');if(!n||q<=0||r<=0)return toast('Enter product, qty and rate');S.pur.items.push({id:uid(),name:n,qty:q,rate:r,damage:0,locked:false,toSample:0,packed:0});['pn','pq','pr'].forEach(i=>$('#'+i).value='');purItems()}
+function savePur(){const p=S.pur;if(!p.vendor)return toast('Select a vendor');if(!p.items.length)return toast('Add at least one product');const t=sum(p.items,i=>i.qty*i.rate);
+ DB.purchases.push({inv:nextNo('pur','PUR-'),date:p.date,vendor:p.vendor,items:p.items,gst:parseFloat(p.gst)||t,qc:false,qcBy:''});bump('pur');S.pur=null;toast('Invoice saved — send to Quality Check');PAGES.purchase()}
+
+/* ============ Quality Check ============ */
+const invOpts=f=>DB.purchases.filter(f||(()=>true)).map(p=>({v:p.inv,l:`${p.inv} — ${V(p.vendor).name} (${p.date})`}));
+PAGES.qc=()=>{view('Quality Check','Record damaged quantity per product',
+ `<div class="card"><div class="row">${fld('Select invoice',combo('qc',invOpts(),'Search invoice…',v=>{S.qcInv=v;qcBody()},S.qcInv),'style="max-width:420px"')}</div></div><div id="qcBody"></div>`);qcBody()};
+function qcBody(){const el=$('#qcBody');const p=DB.purchases.find(x=>x.inv==S.qcInv);if(!p){el.innerHTML='';return}
+ const done=p.qc;el.innerHTML=`<div class="card">${done?`<div class="info">Quality check completed by <b>${esc(p.qcBy)}</b>. Records are locked.</div>`:''}${table(['Invoice no','Vendor','Product','Total qty','Damage qty','Action'],p.items.map(i=>[p.inv,esc(V(p.vendor).name),esc(i.name),i.qty,`<input class="inp" type="number" min="0" max="${i.qty}" id="dm_${i.id}" value="${i.damage}" ${i.locked?'disabled':''}>`,i.locked?badge('Submitted ✓','ok')+` <button class="btn sm" disabled>Submit</button>`:`<button class="btn sm" id="qs_${i.id}" onclick="qcRow('${p.inv}','${i.id}')">Submit</button>`]))}
+ <div class="row" style="margin-top:14px">${fld('Checked by',`<input class="inp" id="qb" value="${esc(p.qcBy)}" ${done?'disabled':''}>`,'style="max-width:300px"')}<div><button class="btn ok" onclick="qcFinal('${p.inv}')" ${done?'disabled':''}>Submit quality check</button></div></div></div>`}
+function qcRow(inv,id){const p=DB.purchases.find(x=>x.inv==inv),i=p.items.find(x=>x.id==id),d=nv('dm_'+id);if(d<0||d>i.qty)return toast('Damage qty must be between 0 and '+i.qty);
+ confirmBox(`Submit <b>${d}</b> damaged pcs for <b>${esc(i.name)}</b>? This cannot be changed later.`,()=>{i.damage=d;i.locked=true;save();qcBody();toast('Row submitted')})}
+function qcFinal(inv){const p=DB.purchases.find(x=>x.inv==inv),by=val('qb');if(p.items.some(i=>!i.locked))return toast('Submit every product row first');if(!by)return toast('Enter "Checked by"');
+ confirmBox('Complete quality check? Stock and vendor payable will be updated.',()=>{p.qc=true;p.qcBy=by;save();qcBody();toast('QC completed — payable posted to vendor history')})}
+
+/* ============ Purchase Data ============ */
+PAGES.pdata=()=>{view('Purchase Data','Approved vs damaged items and payable amount after QC',
+ `<div class="card"><div class="row">${fld('Invoice no',combo('pd',invOpts(),'Search invoice…',v=>{S.pdInv=v;pdBody()},S.pdInv),'style="max-width:420px"')}</div></div><div id="pdBody"></div>`);pdBody()};
+function pdBody(){const el=$('#pdBody'),p=DB.purchases.find(x=>x.inv==S.pdInv);if(!p){el.innerHTML='';return}
+ if(!p.qc){el.innerHTML=`<div class="note">Quality check is pending for ${p.inv}. Payable amount appears after QC is completed.</div>`;return}
+ const ok=p.items.filter(i=>i.qty-i.damage>0),bad=p.items.filter(i=>i.damage>0);
+ el.innerHTML=`<div class="stats">${stat('Vendor',esc(V(p.vendor).name))}${stat('Available qty after QC',sum(p.items,i=>i.qty-i.damage))}${stat('Damaged qty',sum(p.items,i=>i.damage),'warn')}${stat('Payable after QC',I(pPay(p)),'good')}</div>
+ <div class="card"><h3>Approved products</h3>${table(['Product','Qty','Per pc rate','Amount'],ok.map(i=>[esc(i.name),i.qty-i.damage,I(i.rate),I((i.qty-i.damage)*i.rate)]))}</div>
+ <div class="card"><h3>Damaged products</h3>${table(['Product','Qty','Per pc rate','Amount'],bad.map(i=>[esc(i.name),i.damage,I(i.rate),I(i.damage*i.rate)]),'No damaged items')}</div>
+ <div class="info">Payable = approved value adjusted for GST (${I(p.gst)} invoice total). This amount is posted to <b>${esc(V(p.vendor).name)}</b>'s payment history.</div>`}
+
+/* ============ IND Store ============ */
+PAGES.ind=()=>{const t=S.tab.ind;view('IND Store Stock','TRP_MAIN STORE and TRP_SAMPLE STORE',
+ `<div class="tabs"><div class="tab ${t=='main'?'on':''}" onclick="S.tab.ind='main';rerender()">TRP_MAIN STORE</div><div class="tab ${t=='sample'?'on':''}" onclick="S.tab.ind='sample';rerender()">TRP_SAMPLE STORE</div></div><div id="indBody"></div>`,
+ t=='main'?`<button class="btn" onclick="trfSample()">⇄ Transfer to TRP_SAMPLE STORE</button>`:'');indBody()};
+function indBody(){const t=S.tab.ind,ml=mainLines(),el=$('#indBody');
+ if(t=='main'){el.innerHTML=`<div class="stats">${stat('Stock volume (qty)',sum(ml,l=>l.avail))}${stat('Stock value',I(sum(ml,l=>l.avail*l.rate)))}</div>`+
+  listBlock('ind','Search product / vendor',[['date','Sort: Purchase date'],['vendor','Sort: Vendor'],['product','Sort: Product']],()=>{const f=F('ind');let r=mainLines().filter(l=>hit(f.q,l.name,l.vendor));r.sort((a,b)=>f.s=='vendor'?a.vendor.localeCompare(b.vendor):f.s=='product'?a.name.localeCompare(b.name):b.date.localeCompare(a.date));
+   return{title:'TRP_MAIN STORE Stock',head:['Invoice no','Purchase date','Product','Vendor','Purchase qty (after QC)','Available qty','Rate / pc'],rows:r.map(l=>[l.inv,l.date,esc(l.name),esc(l.vendor),l.pq,l.avail,I(l.rate)])}})}
+ else{const sl=ml.filter(l=>l.i.toSample>0);el.innerHTML=`<div class="info">Stock reaches this store only by transfer from TRP_MAIN STORE.</div><div class="stats">${stat('Stock volume (qty)',sum(sl,l=>l.i.toSample))}${stat('Stock value',I(sum(sl,l=>l.i.toSample*l.rate)))}</div>`+
+  listBlock('indS','Search product / vendor',[['date','Sort: Purchase date'],['vendor','Sort: Vendor'],['product','Sort: Product']],()=>{const f=F('indS');let r=mainLines().filter(l=>l.i.toSample>0&&hit(f.q,l.name,l.vendor));r.sort((a,b)=>f.s=='vendor'?a.vendor.localeCompare(b.vendor):f.s=='product'?a.name.localeCompare(b.name):b.date.localeCompare(a.date));
+   return{title:'TRP_SAMPLE STORE Stock',head:['Invoice no','Purchase date','Product','Vendor','Sample qty','Rate / pc'],rows:r.map(l=>[l.inv,l.date,esc(l.name),esc(l.vendor),l.i.toSample,I(l.rate)])}})}}
+function trfSample(){const o=mainLines().filter(l=>l.avail>0).map(l=>({v:l.i.id,l:`${l.name} — ${l.inv} (avail ${l.avail})`}));
+ modal('Transfer to TRP_SAMPLE STORE',`<div class="grid">${fld('Product',combo('ts',o,'Search product…',v=>{const l=mainLines().find(x=>x.i.id==v);$('#tsA').textContent=l?l.avail:'—'}))}${fld('Available qty','<div id="tsA" style="padding:8px 0;font-weight:700">—</div>')}${fld('Transfer qty','<input class="inp" id="tsQ" type="number" min="1">')}</div>`,`<button class="btn ghost" onclick="closeM()">Cancel</button><button class="btn" onclick="doTrfSample()">Transfer</button>`)}
+function doTrfSample(){const l=mainLines().find(x=>x.i.id==cv('ts')),q=nv('tsQ');if(!l)return toast('Select a product');if(q<=0||q>l.avail)return toast('Qty must be 1 – '+l.avail);l.i.toSample+=q;save();closeM();toast('Transferred to TRP_SAMPLE STORE');indBody()}
+
+/* ============ Packing ============ */
+const newPk=()=>({date:today(),salary:'',exp:[],lines:[],prod:'',ven:''});
+PAGES.packing=()=>{const open=S.pkOpen;
+ view('Packing List','Pack styles from TRP_MAIN STORE for shipment to UAE',(open?pkForm():'')+
+ `<div class="card"><h3>Packing lists</h3>${table(['Packing ID','Date','Styles','Total qty','Salary','Expenses attached','Status'],DB.packings.slice().reverse().map(k=>[`<b>${k.id}</b>`,k.date,k.lines.map(l=>esc(l.style)).join(', '),sum(k.lines,l=>l.qty),I(k.salary),I(sum(DB.expenses.filter(e=>e.packing==k.id),e=>e.amount)),k.lines.every(l=>l.moved)?badge('Transferred','ok'):badge('In transit queue','w')]),'No packing lists yet')}</div>`,
+ open?'':`<button class="btn" onclick="S.pk=newPk();S.pkOpen=true;rerender()">+ Add new</button>`);if(open)pkLines()};
+function pkForm(){const k=S.pk,prods=[...new Set(mainLines().filter(l=>l.avail>0).map(l=>l.name))].map(n=>({v:n,l:n}));
+ return `<div class="card"><h3>New packing list</h3><div class="grid">${fld('Packing ID (auto)',`<input class="inp" readonly value="${nextNo('pack','PK-')}">`)}${fld('Packing date',`<input class="inp" type="date" value="${k.date}" onchange="S.pk.date=this.value">`)}${fld('Salary (₹)',`<input class="inp" type="number" min="0" value="${k.salary}" oninput="S.pk.salary=this.value">`)}</div></div>
+ <div class="card"><h3>Attach expenses (from Daily Expenses)</h3>${table(['','Date','Expense type','Mode','Amount','Description'],DB.expenses.map(e=>{const used=!!e.packing;return[`<input type="checkbox" ${used?'disabled':''} ${k.exp.includes(e.id)?'checked':''} onchange="pkExp('${e.id}',this.checked)">`,e.date,esc(e.type),e.mode,I(e.amount),esc(e.desc)+(used?` ${badge('Used in '+e.packing,'w')}`:'')]}),'No expenses recorded')}</div>
+ <div class="card"><h3>Add styles</h3><div class="row">${fld('Style no','<input class="inp" id="pks" placeholder="e.g. ST-201">')}${fld('Product name',combo('pkp',prods,'Search product…',v=>{S.pk.prod=v;S.pk.ven='';pkVen()}))}${fld('Vendor name','<div id="pkvW"></div>')}${fld('Available qty','<div id="pkA" style="padding:8px 0;font-weight:700">—</div>','style="max-width:130px;flex:none"')}${fld('Enter qty','<input class="inp" id="pkq" type="number" min="1">','style="max-width:120px;flex:none"')}<div><button class="btn" onclick="pkOk()">Okay</button></div></div>
+ <div id="pkLines" style="margin-top:14px"></div><div style="margin-top:14px;display:flex;gap:8px"><button class="btn ok" onclick="pkCreate()">Add — create packing list</button><button class="btn ghost" onclick="S.pkOpen=false;rerender()">Cancel</button></div></div>`}
+function pkVen(){const k=S.pk,vs=[...new Set(mainLines().filter(l=>l.name==k.prod&&l.avail>0).map(l=>l.vendorId))].map(id=>({v:id,l:V(id).name}));$('#pkvW').innerHTML=combo('pkv',vs,'Vendors with this product…',v=>{S.pk.ven=v;pkAvail()});pkAvail()}
+const pkStaged=(n,v)=>sum(S.pk.lines.filter(l=>l.product==n&&l.vendor==v),l=>l.qty);
+function pkAvail(){const k=S.pk;$('#pkA').textContent=k.prod&&k.ven?availPV(k.prod,k.ven)-pkStaged(k.prod,k.ven):'—'}
+function pkExp(id,on){const a=S.pk.exp;if(on&&!a.includes(id))a.push(id);if(!on)S.pk.exp=a.filter(x=>x!=id)}
+function pkOk(){const k=S.pk,st=val('pks'),q=nv('pkq');if(!st||!k.prod||!k.ven||q<=0)return toast('Fill style, product, vendor and qty');if(k.lines.some(l=>l.style==st)||DB.packings.some(p=>p.lines.some(l=>l.style==st)))return toast('Style no already used');
+ const av=availPV(k.prod,k.ven)-pkStaged(k.prod,k.ven);if(q>av)return toast('Only '+av+' available');k.lines.push({style:st,product:k.prod,vendor:k.ven,qty:q});$('#pks').value='';$('#pkq').value='';pkAvail();pkLines()}
+function pkLines(){const k=S.pk;$('#pkLines').innerHTML=table(['Date','Style no','Product','Vendor','Qty',''],k.lines.map((l,x)=>[k.date,esc(l.style),esc(l.product),esc(V(l.vendor).name),l.qty,`<button class="btn ghost sm" onclick="S.pk.lines.splice(${x},1);pkAvail();pkLines()">Remove</button>`]),'No styles added yet')}
+function pkCreate(){const k=S.pk;if(!k.lines.length)return toast('Add at least one style');const id=nextNo('pack','PK-'),lines=[];
+ k.lines.forEach(l=>{let need=l.qty,cost=0;mainLines().filter(x=>x.name==l.product&&x.vendorId==l.vendor&&x.avail>0).sort((a,b)=>a.date.localeCompare(b.date)).forEach(x=>{if(need<=0)return;const t=Math.min(need,x.avail);x.i.packed+=t;need-=t;cost+=t*x.rate});lines.push({style:l.style,product:l.product,vendor:l.vendor,qty:l.qty,rate:cost/l.qty,moved:false})});
+ k.exp.forEach(eid=>{const e=DB.expenses.find(x=>x.id==eid);if(e)e.packing=id});DB.packings.push({id,date:k.date,salary:parseFloat(k.salary)||0,lines});bump('pack');S.pkOpen=false;S.pk=null;toast(id+' created — go to Transit');PAGES.packing()}
+
+/* ============ Transit ============ */
+PAGES.transit=()=>{const pk=DB.packings[DB.packings.length-1];
+ let body=`<div class="card"><h3>Rates</h3><div class="row">${fld('Currency exchange rate (1 AED = ₹)',`<input class="inp" id="tx" type="number" step="0.01" value="${DB.set.ex}">`)}${fld('Profit %',`<input class="inp" id="tp" type="number" step="0.1" value="${DB.set.profit}">`)}<div><button class="btn" onclick="saveRates()">Save rates</button></div></div></div>`;
+ if(!pk)body+=`<div class="note">No packing list yet. Create one in Packing List first.</div>`;
+ else{const c=trCalc(pk);body+=`<div class="stats">${stat('Packing ID',pk.id)}${stat('Additional expenses (salary + selected)',I(c.add))}${stat('Expense recommendation / style',A(c.rec))}</div>
+ <div class="card"><h3>Styles in ${pk.id}</h3>${table(['<input type="checkbox" onchange="$$(\'.trc:not(:disabled)\').forEach(x=>x.checked=this.checked)"> All','Style no','Product','Unit rate INR','Per pc AED','Qty','Expense rec. (AED)','Updated unit rate (AED)','Status'],c.rows.map((r,x)=>[`<input type="checkbox" class="trc" value="${x}" ${r.l.moved?'disabled':''}>`,esc(r.l.style),esc(r.l.product),I(r.unit),A(r.aed),r.l.qty,A(c.rec),`<b>${A(r.upd)}</b>`,r.l.moved?badge('In UAE store','ok'):badge('Pending','w')]))}
+ <div style="margin-top:14px"><button class="btn" onclick="trToUae()">Transfer selected to UAE Store →</button></div><p class="mut" style="font-size:12px">Updated unit rate = per pc AED + (additional expenses ÷ exchange rate ÷ number of styles). Selling price = updated rate + profit %.</p></div>`}
+ view('Transit','Convert to AED, spread expenses and move to the UAE store',body)};
+function saveRates(){const e=nv('tx'),p=nv('tp');if(e<=0)return toast('Enter a valid exchange rate');DB.set.ex=e;DB.set.profit=p;save();toast('Rates saved');PAGES.transit()}
+function trToUae(){const pk=DB.packings[DB.packings.length-1],sel=$$('.trc:checked').map(x=>+x.value);if(!sel.length)return toast('Select at least one style');
+ confirmBox(`Transfer ${sel.length} style(s) to UAE_MAIN STORE?`,()=>{const c=trCalc(pk);sel.forEach(x=>{const r=c.rows[x],l=r.l;l.moved=true;l.tdate=today();l.upd=r.upd;l.sell=r.upd*(1+DB.set.profit/100);DB.uaeMain.push({id:uid(),style:l.style,product:l.product,qty:l.qty,cost:r.upd,price:l.sell,date:today()})});save();toast('Transferred to UAE_MAIN STORE');PAGES.transit()})}
+
+/* ============ UAE Store ============ */
+PAGES.uae=()=>{const t=S.tab.uae;view('UAE Store Stock','UAE_MAIN STORE and UAE_RETURN STORE',
+ `<div class="tabs"><div class="tab ${t=='main'?'on':''}" onclick="S.tab.uae='main';rerender()">UAE_MAIN STORE</div><div class="tab ${t=='ret'?'on':''}" onclick="S.tab.uae='ret';rerender()">UAE_RETURN STORE</div></div><div id="uaeBody"></div>`,
+ t=='ret'?`<button class="btn" onclick="createReturn()">+ Create return</button> <button class="btn ghost" onclick="trfMain()">⇄ Transfer to UAE main store</button>`:'');uaeBody()};
+function uaeBody(){const el=$('#uaeBody');
+ if(S.tab.uae=='main'){const m=DB.uaeMain;el.innerHTML=`<div class="stats">${stat('Stock volume (qty)',sum(m,u=>u.qty))}${stat('Stock value (at cost)',A(sum(m,u=>u.qty*u.cost)))}</div>`+
+  listBlock('uae','Search style no / product',[['date','Sort: Transit date'],['style','Sort: Style no'],['product','Sort: Product name']],()=>{const f=F('uae');let r=DB.uaeMain.filter(u=>hit(f.q,u.style,u.product));r.sort((a,b)=>f.s=='style'?a.style.localeCompare(b.style):f.s=='product'?a.product.localeCompare(b.product):b.date.localeCompare(a.date));
+   return{title:'UAE_MAIN STORE Stock',head:['Style no','Product name','Transit date','Avl qty','Unit selling price'],rows:r.map(u=>[esc(u.style),esc(u.product),u.date,u.qty,`<b>${A(u.price)}</b>`])}})}
+ else{const r=DB.uaeReturn;el.innerHTML=`<div class="stats">${stat('Stock volume (qty)',sum(r,x=>x.qty))}${stat('Stock value (returned)',A(sum(r,x=>x.qty*x.price)))}</div>`+
+  listBlock('uret','Search style no / product',[['date','Sort: Returned date'],['style','Sort: Style no'],['product','Sort: Product name']],()=>{const f=F('uret');let a=DB.uaeReturn.filter(x=>hit(f.q,x.style,x.product));a.sort((p,q)=>f.s=='style'?p.style.localeCompare(q.style):f.s=='product'?p.product.localeCompare(q.product):q.date.localeCompare(p.date));
+   return{title:'UAE_RETURN STORE',head:['Invoice no','Style no','Product','Returned qty','Reason','Invoice value','Updated invoice value','In store'],rows:a.map(x=>{const b=DB.bills.find(z=>z.no==x.inv);return[x.inv,esc(x.style),esc(x.product),x.retQty,x.reason,A(b?bTot(b):0),A(b?bNet(b):0),x.qty]})}})}}
+function trfMain(){const o=DB.uaeReturn.filter(x=>x.qty>0&&x.reason!='Damage').map(x=>({v:x.id,l:`${x.style} — ${x.product} (qty ${x.qty})`}));
+ modal('Transfer to UAE_MAIN STORE',`<div class="info">Damaged returns are not listed.</div><div class="grid">${fld('Style no',combo('tm',o,'Search style…',v=>{const x=DB.uaeReturn.find(z=>z.id==v);$('#tmQ').value=x?x.qty:''}))}${fld('Qty','<input class="inp" id="tmQ" type="number" min="1">')}</div>`,`<button class="btn ghost" onclick="closeM()">Cancel</button><button class="btn" onclick="doTrfMain()">Submit</button>`)}
+function doTrfMain(){const x=DB.uaeReturn.find(z=>z.id==cv('tm')),q=nv('tmQ');if(!x)return toast('Select a style');if(q<=0||q>x.qty)return toast('Qty must be 1 – '+x.qty);
+ x.qty-=q;let m=DB.uaeMain.find(u=>u.style==x.style);if(m)m.qty+=q;else DB.uaeMain.push({id:uid(),style:x.style,product:x.product,qty:q,cost:x.cost,price:x.price,date:today()});save();closeM();toast('Moved to UAE_MAIN STORE');uaeBody()}
+function createReturn(){window.RT={inv:'',type:'Fully',rows:[]};
+ modal('Create return',`<div class="grid">${fld('Select invoice',combo('rt',DB.bills.map(b=>({v:b.no,l:`${b.no} — ${C(b.cust).name}`})),'Search invoice…',v=>{RT.inv=v;rtLoad()}))}${fld('Return type',`<select class="inp" id="rtT" onchange="RT.type=this.value;rtLoad()"><option>Fully</option><option>Partial</option></select>`)}${fld('Reason',`<select class="inp" id="rtR"><option>Damage</option><option>Size issue</option><option>Other</option></select>`)}</div><div id="rtTbl" style="margin-top:14px"></div>`,`<button class="btn ghost" onclick="closeM()">Cancel</button><button class="btn" onclick="rtSubmit()">Submit</button>`)}
+function rtLoad(){const b=DB.bills.find(x=>x.no==RT.inv),el=$('#rtTbl');if(!b){el.innerHTML='';return}const full=RT.type=='Fully';
+ RT.rows=b.lines.map(l=>({l,max:l.qty-sum(DB.uaeReturn.filter(r=>r.inv==b.no&&r.style==l.style),r=>r.retQty)}));
+ el.innerHTML=table(['','Style no','Product','Invoiced','Returnable','Return qty'],RT.rows.map((r,i)=>[`<input type="checkbox" class="rtc" value="${i}" ${full&&r.max>0?'checked':''} ${r.max<=0?'disabled':''} ${full?'onclick="return false"':''}>`,esc(r.l.style),esc(r.l.product),r.l.qty,r.max,`<input class="inp" id="rq${i}" type="number" min="0" max="${r.max}" value="${full?r.max:''}" ${full||r.max<=0?'readonly':''}>`]))}
+function rtSubmit(){const b=DB.bills.find(x=>x.no==RT.inv);if(!b)return toast('Select an invoice');const picks=[];
+ $$('.rtc:checked').forEach(c=>{const i=+c.value,q=nv('rq'+i),r=RT.rows[i];if(q>0){if(q>r.max)return picks.bad=1;picks.push({r,q})}});if(picks.bad)return toast('Return qty exceeds returnable qty');if(!picks.length)return toast('Select products and enter return qty');
+ const reason=val('rtR'),rid=nextNo('ret','RET-');picks.forEach(p=>DB.uaeReturn.push({id:uid(),ref:rid,inv:b.no,style:p.r.l.style,product:p.r.l.product,retQty:p.q,qty:p.q,price:p.r.l.price,cost:p.r.l.cost,reason,date:today()}));bump('ret');closeM();toast('Return recorded');uaeBody()}
+
+/* ============ Customers ============ */
+PAGES.customers=()=>{if(S.cust)return custDetail(S.cust);
+ view('Customer Master','Customers and outstanding balances',(S.custNew?`<div class="card"><h3>New customer</h3><div class="grid">${fld('Name','<input class="inp" id="cn">')}${fld('Contact no','<input class="inp" id="cc">')}${fld('WhatsApp no','<input class="inp" id="cw">')}${fld('Address','<input class="inp" id="ca">')}${fld('Email','<input class="inp" id="ce" type="email">')}</div><div style="margin-top:14px"><button class="btn" onclick="saveCust()">Save</button> <button class="btn ghost" onclick="S.custNew=false;rerender()">Cancel</button></div></div>`:'')+
+ `<div class="card">${table(['Sl no','Customer name','Contact no','Email','Outstanding amount'],DB.customers.map((c,i)=>[i+1,`<span class="link" onclick="S.cust='${c.id}';rerender()">${esc(c.name)}</span>`,esc(c.contact),esc(c.email),`<b style="color:${cOut(c.id)>0.5?'var(--bad)':'var(--ok)'}">${A(cOut(c.id))}</b>`]))}</div>`,
+ S.custNew?'':`<button class="btn" onclick="S.custNew=true;rerender()">+ Create new</button>`)};
+function saveCust(){const c={id:uid(),name:val('cn'),contact:val('cc'),wa:val('cw'),addr:val('ca'),email:val('ce')};if(!c.name||!c.contact)return toast('Name and contact are required');DB.customers.push(c);save();S.custNew=false;toast('Customer created');PAGES.customers()}
+function custDetail(id){const c=C(id);S.f.cu=S.f.cu||{q:'',s:'all'};
+ view(esc(c.name),esc(c.contact)+' · '+esc(c.email)+' · '+esc(c.addr),
+ `<div class="stats">${stat('Outstanding amount',A(cOut(id)),'warn')}</div>`+listBlock('cu',null,[['all','Show: All invoices'],['paid','Show: Paid invoices'],['out','Show: Outstanding invoices']],()=>{const f=F('cu');const r=DB.bills.filter(b=>b.cust==id&&(f.s=='paid'?bBal(b)<=0.5:f.s=='out'?bBal(b)>0.5:true));
+  return{title:'Customer statement — '+c.name,head:['Invoice no','Invoice date','Invoice amount','Received amount','Balance amount'],rows:r.map(b=>[b.no,b.date,A(bNet(b)),A(bRec(b)),A(bBal(b))])}}),
+ `<button class="btn ghost" onclick="S.cust=null;rerender()">← All customers</button>`)}
+
+/* ============ Billing ============ */
+const newBill=()=>({date:today(),cust:'',sty:'',lines:[]});
+PAGES.billing=()=>{const open=S.billOpen;view('Billing','Create customer invoices from UAE_MAIN STORE',(open?billForm():'')+
+ `<div class="card"><h3>Invoices</h3>${table(['Invoice no','Date','Customer','Amount','Returns','Net','Received','Balance',''],DB.bills.slice().reverse().map(b=>[b.no,b.date,esc(C(b.cust).name),A(bTot(b)),A(bRet(b)),A(bNet(b)),A(bRec(b)),A(bBal(b)),`<button class="btn ghost sm" onclick="printBill('${b.no}')">Print</button>`]),'No invoices yet')}</div>`,
+ open?'':`<button class="btn" onclick="S.bill=newBill();S.billOpen=true;rerender()">+ Create</button>`);if(open)billLines()};
+function billForm(){const b=S.bill,o=DB.uaeMain.filter(u=>u.qty>0).map(u=>({v:u.id,l:`${u.style} — ${u.product}`}));
+ return `<div class="card"><h3>New invoice</h3><div class="grid">${fld('Invoice no (auto)',`<input class="inp" readonly value="${nextNo('bill','INV-')}">`)}${fld('Date',`<input class="inp" type="date" value="${b.date}" onchange="S.bill.date=this.value">`)}${fld('Customer name',combo('bc',DB.customers.map(c=>({v:c.id,l:c.name})),'Search customer…',v=>S.bill.cust=v,b.cust))}</div>
+ <div class="row" style="margin-top:14px">${fld('Style no',combo('bs',o,'Search style…',v=>{const u=DB.uaeMain.find(x=>x.id==v);S.bill.sty=v;$('#bav').textContent=u?u.qty-sum(S.bill.lines.filter(l=>l.uid==v),l=>l.qty):'—';$('#bp').value=u?u.price.toFixed(2):''}))}${fld('Available qty','<div id="bav" style="padding:8px 0;font-weight:700">—</div>','style="max-width:120px;flex:none"')}${fld('Qty','<input class="inp" id="bq" type="number" min="1">','style="max-width:110px;flex:none"')}${fld('Selling price (AED, editable)','<input class="inp" id="bp" type="number" step="0.01">','style="max-width:190px;flex:none"')}<div><button class="btn" onclick="billAdd()">Add</button></div></div>
+ <div id="billLines" style="margin-top:14px"></div><div style="margin-top:14px;display:flex;gap:8px"><button class="btn ok" onclick="billGen()">Generate &amp; print</button><button class="btn ghost" onclick="S.billOpen=false;rerender()">Cancel</button></div></div>`}
+function billAdd(){const b=S.bill,u=DB.uaeMain.find(x=>x.id==b.sty),q=nv('bq'),p=nv('bp');if(!u||q<=0||p<=0)return toast('Select style, qty and price');const av=u.qty-sum(b.lines.filter(l=>l.uid==u.id),l=>l.qty);if(q>av)return toast('Only '+av+' available');
+ b.lines.push({uid:u.id,style:u.style,product:u.product,qty:q,price:p,cost:u.cost});$('#bq').value='';$('#bav').textContent=av-q;billLines()}
+function billLines(){const b=S.bill;$('#billLines').innerHTML=table(['Style no','Product','Qty','Unit price','Amount',''],b.lines.map((l,i)=>[esc(l.style),esc(l.product),l.qty,A(l.price),A(l.qty*l.price),`<button class="btn ghost sm" onclick="S.bill.lines.splice(${i},1);billLines()">Remove</button>`]),'No items added')+`<div class="tot"><span>Total qty: ${sum(b.lines,l=>l.qty)}</span><span>Invoice total: ${A(sum(b.lines,l=>l.qty*l.price))}</span></div>`}
+function billGen(){const b=S.bill;if(!b.cust)return toast('Select a customer');if(!b.lines.length)return toast('Add at least one item');
+ const inv={no:nextNo('bill','INV-'),date:b.date,cust:b.cust,lines:b.lines.map(l=>({style:l.style,product:l.product,qty:l.qty,price:l.price,cost:l.cost}))};
+ b.lines.forEach(l=>{const u=DB.uaeMain.find(x=>x.id==l.uid);u.qty-=l.qty});DB.bills.push(inv);bump('bill');S.billOpen=false;S.bill=null;toast(inv.no+' generated');PAGES.billing();printBill(inv.no)}
+function printBill(no){const b=DB.bills.find(x=>x.no==no),c=C(b.cust);printDoc('Invoice '+b.no,['Style no','Product','Qty','Unit price','Amount'],b.lines.map(l=>[l.style,l.product,l.qty,A(l.price),A(l.qty*l.price)]),`<p class="m">Customer: <b>${esc(c.name)}</b> · ${esc(c.contact||'')} · Date: ${b.date}</p><p><b>Total: ${A(bTot(b))}</b></p>`)}
+
+/* ============ Finance ============ */
+PAGES.exp=()=>view('Daily Expenses','Record day-to-day expenses (attach them to packing lists later)',
+ `<div class="card"><div class="grid">${fld('Date',`<input class="inp" id="xd" type="date" value="${today()}">`)}${fld('Expense type','<input class="inp" id="xt" placeholder="Freight, Labour…">')}${fld('Payment mode',`<select class="inp" id="xm"><option>Cash</option><option>Upi</option><option>Account</option></select>`)}${fld('Amount (₹)','<input class="inp" id="xa" type="number" min="0" step="0.01">')}${fld('Description','<input class="inp" id="xs">')}</div><div style="margin-top:14px"><button class="btn" onclick="saveExp()">OK</button></div></div>`+
+ `<div class="card"><h3>Expenses</h3>${table(['Date','Type','Mode','Amount','Description','Packing ID'],DB.expenses.slice().reverse().map(e=>[e.date,esc(e.type),e.mode,I(e.amount),esc(e.desc),e.packing?badge(e.packing,'w'):badge('Open','ok')]))}<div class="tot"><span>Total: ${I(sum(DB.expenses,e=>e.amount))}</span></div></div>`);
+function saveExp(){const e={id:uid(),date:val('xd'),type:val('xt'),mode:val('xm'),amount:nv('xa'),desc:val('xs'),packing:''};if(!e.date||!e.type||e.amount<=0)return toast('Enter date, type and amount');DB.expenses.push(e);save();toast('Expense saved');PAGES.exp()}
+
+PAGES.pay=()=>{const open=S.payOpen;S.f.pay=S.f.pay||{q:'',s:'all'};
+ view('Payment Entry','Pay vendors against QC-approved purchase invoices',(open?payForm():'')+listBlock('pay',null,[['all','Show: All'],['paid','Paid purchase invoices'],['out','Outstanding purchase invoices'],['vendor','Sort: Vendor name']],()=>{const f=F('pay');let r=DB.payments.slice();const pp=x=>DB.purchases.find(p=>p.inv==x.inv);if(f.s=='paid')r=r.filter(x=>pBal(pp(x))<=0.5);if(f.s=='out')r=r.filter(x=>pBal(pp(x))>0.5);if(f.s=='vendor')r.sort((a,b)=>V(a.vendor).name.localeCompare(V(b.vendor).name));else r.sort((a,b)=>b.date.localeCompare(a.date));
+  return{title:'Payment Entries',head:['Paid date','Voucher no','Purchase invoice no','Purchase invoice date','Vendor name','Payable amount','Paid amount','Balance amount'],rows:r.map(x=>[x.date,x.no,x.inv,pp(x).date,esc(V(x.vendor).name),I(x.payable),I(x.paid),I(x.balance)])}}),
+ open?'':`<button class="btn" onclick="S.payOpen=true;rerender()">+ New</button>`)};
+function payForm(){const o=DB.purchases.filter(p=>p.qc&&pBal(p)>0.5).map(p=>({v:p.inv,l:`${p.inv} — ${V(p.vendor).name} (due ${I(pBal(p))})`}));
+ return `<div class="card"><h3>New payment voucher</h3><div class="grid">${fld('Payment voucher no (auto)',`<input class="inp" readonly value="${nextNo('pay','PAY-')}">`)}${fld('Purchase invoice no',combo('py',o,'Search invoice…',v=>{const p=DB.purchases.find(x=>x.inv==v);$('#pyD').textContent=p.date;$('#pyV').textContent=V(p.vendor).name;$('#pyP').textContent=I(pBal(p));$('#pyB').textContent=I(pBal(p))}))}${fld('Purchase invoiced date','<div id="pyD" style="padding:8px 0">—</div>')}${fld('Vendor name','<div id="pyV" style="padding:8px 0">—</div>')}${fld('Payable amount','<div id="pyP" style="padding:8px 0;font-weight:700">—</div>')}${fld('Paid amount (₹)','<input class="inp" id="pyA" type="number" min="0" step="0.01" oninput="payCalc()">')}${fld('Balance amount','<div id="pyB" style="padding:8px 0;font-weight:700">—</div>')}</div>
+ <div style="margin-top:14px;display:flex;gap:8px"><button class="btn ok" onclick="savePay()">OK</button><button class="btn ghost" onclick="dlPay()">⬇ Download voucher</button><button class="btn ghost" onclick="S.payOpen=false;rerender()">Close</button></div></div>`}
+function payCalc(){const p=DB.purchases.find(x=>x.inv==cv('py'));if(p)$('#pyB').textContent=I(pBal(p)-nv('pyA'))}
+function savePay(){const p=DB.purchases.find(x=>x.inv==cv('py')),a=nv('pyA');if(!p)return toast('Select an invoice');if(a<=0||a>pBal(p)+0.01)return toast('Paid amount must be 0 – '+nf(pBal(p)));
+ const x={no:nextNo('pay','PAY-'),date:today(),inv:p.inv,vendor:p.vendor,payable:pBal(p),paid:a,balance:pBal(p)-a};DB.payments.push(x);bump('pay');S.lastPay=x;toast('Payment saved — '+x.no);PAGES.pay();S.payOpen=true;PAGES.pay()}
+function dlPay(){const x=S.lastPay;if(!x)return toast('Save a voucher first');printDoc('Payment voucher '+x.no,['Date','Invoice','Vendor','Payable','Paid','Balance'],[[x.date,x.inv,V(x.vendor).name,I(x.payable),I(x.paid),I(x.balance)]])}
+
+PAGES.rec=()=>{const open=S.recOpen;S.f.rec=S.f.rec||{q:'',s:'all'};
+ view('Receipt Entry','Receive money against customer invoices',(open?recForm():'')+listBlock('rec',null,[['all','Show: All'],['paid','Paid invoices'],['out','Outstanding invoices'],['cust','Sort: Customer name']],()=>{const f=F('rec');let r=DB.receipts.slice();const bb=x=>DB.bills.find(b=>b.no==x.inv);if(f.s=='paid')r=r.filter(x=>bBal(bb(x))<=0.5);if(f.s=='out')r=r.filter(x=>bBal(bb(x))>0.5);if(f.s=='cust')r.sort((a,b)=>C(a.cust).name.localeCompare(C(b.cust).name));else r.sort((a,b)=>b.date.localeCompare(a.date));
+  return{title:'Receipt Entries',head:['Receipt date','Receipt no','Invoice no','Invoice date','Customer name','Receivable amount','Received amount','Balance amount'],rows:r.map(x=>[x.date,x.no,x.inv,bb(x).date,esc(C(x.cust).name),A(x.recv),A(x.recd),A(x.balance)])}}),
+ open?'':`<button class="btn" onclick="S.recOpen=true;rerender()">+ New</button>`)};
+function recForm(){const o=DB.bills.filter(b=>bBal(b)>0.5).map(b=>({v:b.no,l:`${b.no} — ${C(b.cust).name} (due ${A(bBal(b))})`}));
+ return `<div class="card"><h3>New receipt</h3><div class="grid">${fld('Receipt no (auto)',`<input class="inp" readonly value="${nextNo('rec','REC-')}">`)}${fld('Invoice no',combo('rc',o,'Search invoice…',v=>{const b=DB.bills.find(x=>x.no==v);$('#rcD').textContent=b.date;$('#rcV').textContent=C(b.cust).name;$('#rcP').textContent=A(bBal(b));$('#rcB').textContent=A(bBal(b))}))}${fld('Invoiced date','<div id="rcD" style="padding:8px 0">—</div>')}${fld('Customer name','<div id="rcV" style="padding:8px 0">—</div>')}${fld('Receivable amount','<div id="rcP" style="padding:8px 0;font-weight:700">—</div>')}${fld('Received amount (AED)','<input class="inp" id="rcA" type="number" min="0" step="0.01" oninput="recCalc()">')}${fld('Balance amount','<div id="rcB" style="padding:8px 0;font-weight:700">—</div>')}</div>
+ <div style="margin-top:14px;display:flex;gap:8px"><button class="btn ok" onclick="saveRec()">OK</button><button class="btn ghost" onclick="dlRec()">⬇ Download receipt</button><button class="btn ghost" onclick="S.recOpen=false;rerender()">Close</button></div></div>`}
+function recCalc(){const b=DB.bills.find(x=>x.no==cv('rc'));if(b)$('#rcB').textContent=A(bBal(b)-nv('rcA'))}
+function saveRec(){const b=DB.bills.find(x=>x.no==cv('rc')),a=nv('rcA');if(!b)return toast('Select an invoice');if(a<=0||a>bBal(b)+0.01)return toast('Received amount must be 0 – '+nf(bBal(b)));
+ const x={no:nextNo('rec','REC-'),date:today(),inv:b.no,cust:b.cust,recv:bBal(b),recd:a,balance:bBal(b)-a};DB.receipts.push(x);bump('rec');S.lastRec=x;toast('Receipt saved — '+x.no);PAGES.rec();S.recOpen=true;PAGES.rec()}
+function dlRec(){const x=S.lastRec;if(!x)return toast('Save a receipt first');printDoc('Receipt '+x.no,['Date','Invoice','Customer','Receivable','Received','Balance'],[[x.date,x.inv,C(x.cust).name,A(x.recv),A(x.recd),A(x.balance)]])}
+
+/* ============ Reports ============ */
+const REPS={
+ purchase:['Purchase report',()=>({head:['Invoice','Date','Vendor','Qty','Amount','Incl. GST','QC','Payable','Paid','Balance'],rows:DB.purchases.map(p=>[p.inv,p.date,esc(V(p.vendor).name),pQty(p),I(pTot(p)),I(p.gst),p.qc?'Done':'Pending',p.qc?I(pPay(p)):'—',I(pPaid(p)),p.qc?I(pBal(p)):'—'])})],
+ sales:['Sales report',()=>({head:['Invoice','Date','Customer','Qty','Amount','Returns','Net','Received','Balance'],rows:DB.bills.map(b=>[b.no,b.date,esc(C(b.cust).name),sum(b.lines,l=>l.qty),A(bTot(b)),A(bRet(b)),A(bNet(b)),A(bRec(b)),A(bBal(b))])})],
+ stock:['IND stock report',()=>({head:['Invoice','Date','Product','Vendor','Qty after QC','Available','Rate','Value'],rows:mainLines().map(l=>[l.inv,l.date,esc(l.name),esc(l.vendor),l.pq,l.avail,I(l.rate),I(l.avail*l.rate)])})],
+ ustock:['UAE stock report',()=>({head:['Style','Product','Transit date','Avl qty','Cost','Selling price','Value'],rows:DB.uaeMain.map(u=>[esc(u.style),esc(u.product),u.date,u.qty,A(u.cost),A(u.price),A(u.qty*u.cost)])})],
+ credit:['Credit report (receipts)',()=>({head:['Date','Receipt','Invoice','Customer','Received'],rows:DB.receipts.map(r=>[r.date,r.no,r.inv,esc(C(r.cust).name),A(r.recd)])})],
+ debit:['Debit report (payments & expenses)',()=>({head:['Date','Type','Reference','Party / description','Mode','Amount'],rows:[...DB.payments.map(p=>[p.date,'Vendor payment',p.no,esc(V(p.vendor).name),'—',I(p.paid)]),...DB.expenses.map(e=>[e.date,'Expense',e.type,esc(e.desc),e.mode,I(e.amount)])].sort((a,b)=>b[0].localeCompare(a[0]))})],
+ sample:['Sample stock report',()=>({head:['Invoice','Product','Vendor','Sample qty','Rate','Value'],rows:mainLines().filter(l=>l.i.toSample>0).map(l=>[l.inv,esc(l.name),esc(l.vendor),l.i.toSample,I(l.rate),I(l.i.toSample*l.rate)])})],
+ damage:['Damage stock report',()=>({head:['Source','Reference','Product','Qty','Value'],rows:[...DB.purchases.flatMap(p=>p.items.filter(i=>i.damage>0).map(i=>['QC damage (IND)',p.inv,esc(i.name),i.damage,I(i.damage*i.rate)])),...DB.uaeReturn.filter(r=>r.reason=='Damage').map(r=>['Customer return (UAE)',r.inv,esc(r.product),r.retQty,A(r.retQty*r.price)])]})],
+ return:['Return report',()=>({head:['Date','Invoice','Style','Product','Returned qty','Reason','Value'],rows:DB.uaeReturn.map(r=>[r.date,r.inv,esc(r.style),esc(r.product),r.retQty,r.reason,A(r.retQty*r.price)])})],
+ transit:['Transit report',()=>({head:['Packing','Date','Style','Product','Qty','Unit INR','Updated AED','Selling AED','Status'],rows:DB.packings.flatMap(k=>k.lines.map(l=>[k.id,k.date,esc(l.style),esc(l.product),l.qty,I(l.rate),l.upd?A(l.upd):'—',l.sell?A(l.sell):'—',l.moved?'Moved to UAE':'Pending']))})]};
+PAGES.reports=()=>{const r=REPS[S.rep];view('Reports','Pick a report and download it as PDF',
+ `<div class="tabs">${Object.entries(REPS).map(([k,v])=>`<div class="tab ${S.rep==k?'on':''}" onclick="S.rep='${k}';rerender()">${v[0].split(' (')[0]}</div>`).join('')}</div>`+listBlock('rep','Search in report',null,()=>{const f=F('rep'),d=REPS[S.rep][1]();return{title:REPS[S.rep][0],head:d.head,rows:d.rows.filter(x=>hit(f.q,...x.map(txt)))}}))};
+
+nav();go('dash');
+</script>
+</body>
+</html>

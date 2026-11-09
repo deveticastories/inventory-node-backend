@@ -32,6 +32,11 @@ router.use(verifyToken);
  *           type: number
  *           minimum: 0.01
  *           example: 100
+ *         receiptDate:
+ *           type: string
+ *           format: date
+ *           description: Paid date; defaults to today
+ *           example: 2026-11-08
  *     ReceiptEntry:
  *       type: object
  *       properties:
@@ -197,6 +202,7 @@ router.get("/:id", receiptEntryController.getReceiptEntryById);
  * /api/receipt-entries/{id}:
  *   put:
  *     summary: Update a receipt entry
+ *     description: Received amount and paid date can be edited; the invoice cannot. Balances on the invoice's receipts and the invoice totals are recalculated.
  *     tags: [Receipt Entries]
  *     security:
  *       - bearerAuth: []
@@ -206,11 +212,26 @@ router.get("/:id", receiptEntryController.getReceiptEntryById);
  *         required: true
  *         schema:
  *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               receivedAmount:
+ *                 type: number
+ *                 minimum: 0.01
+ *                 example: 100
+ *               receiptDate:
+ *                 type: string
+ *                 format: date
+ *                 example: 2026-11-08
  *     responses:
  *       200:
  *         description: Receipt entry updated successfully
  *       400:
- *         description: Receipt amount and invoice cannot be edited
+ *         description: Invalid amount or date, amount exceeds the outstanding balance, or invoice change attempted
  *       404:
  *         description: Receipt entry not found
  */

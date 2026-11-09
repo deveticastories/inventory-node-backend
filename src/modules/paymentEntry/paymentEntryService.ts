@@ -24,6 +24,8 @@ const generatePaymentVoucherNo = async (): Promise<string> => {
 export interface CreatePaymentEntryInput {
     purchaseInvoice: string;
     paidAmount: number;
+    /** Date the vendor was paid (YYYY-MM-DD); defaults to now. */
+    paymentDate?: string;
 }
 
 export const createPaymentEntry = async (
@@ -39,6 +41,14 @@ export const createPaymentEntry = async (
         paymentData.paidAmount <= 0
     ) {
         throw new Error("PAYMENT_AMOUNT_INVALID");
+    }
+
+    const paymentDate = paymentData.paymentDate
+        ? new Date(paymentData.paymentDate)
+        : new Date();
+
+    if (Number.isNaN(paymentDate.getTime())) {
+        throw new Error("PAYMENT_DATE_INVALID");
     }
 
     const purchaseEntry = await PurchaseEntryModel.findOne({
@@ -100,7 +110,7 @@ export const createPaymentEntry = async (
             paymentData.purchaseInvoice,
         ),
         vendor: purchaseEntry.vendor,
-        paymentDate: new Date(),
+        paymentDate,
         payableAmount: currentBalance,
         paidAmount: paymentData.paidAmount,
         balanceAmount,
@@ -146,25 +156,134 @@ export const getPaymentEntriesByPurchaseEntry = async (
     );
 };
 
+export interface EditPaymentEntryInput {
+    paidAmount?: number;
+    paymentDate?: string;
+}
+
+/**
+ * Paid amount and date can be edited; the invoice cannot. Payable/balance
+ * snapshots of every voucher on the invoice are recalculated afterwards.
+ */
 export const editPaymentEntry = async (
     id: string,
-    updateData: Partial<CreatePaymentEntryInput>,
+    updateData: EditPaymentEntryInput & { purchaseInvoice?: string },
 ) => {
     if (!mongoose.isValidObjectId(id)) {
         throw new Error("PAYMENT_ENTRY_ID_INVALID");
     }
 
-    const existingEntry = await paymentEntryRepo.findPaymentEntryById(id);
+    const existingEntry = await PaymentEntryModel.findOne({
+        _id: new mongoose.Types.ObjectId(id),
+        isDeleted: false,
+    }).lean();
 
     if (!existingEntry) {
         return null;
     }
 
-    if (updateData.purchaseInvoice || updateData.paidAmount !== undefined) {
+    if (updateData.purchaseInvoice !== undefined) {
         throw new Error("PAYMENT_ENTRY_EDIT_NOT_ALLOWED");
     }
 
-    return paymentEntryRepo.updatePaymentEntryById(id, updateData);
+    const update: { paidAmount?: number; paymentDate?: Date } = {};
+
+    if (updateData.paymentDate !== undefined) {
+        const paymentDate = new Date(updateData.paymentDate);
+
+        if (Number.isNaN(paymentDate.getTime())) {
+            throw new Error("PAYMENT_DATE_INVALID");
+        }
+
+        update.paymentDate = paymentDate;
+    }
+
+    if (updateData.paidAmount !== undefined) {
+        const paidAmount = Number(updateData.paidAmount);
+
+        if (!Number.isFinite(paidAmount) || paidAmount <= 0) {
+            throw new Error("PAYMENT_AMOUNT_INVALID");
+        }
+
+        const qualityCheck = await PurchaseQualityCheckModel.findOne({
+            purchaseEntry: existingEntry.purchaseInvoice,
+            isDeleted: false,
+        })
+            .select("payableAfterQC")
+            .lean<{ payableAfterQC: number }>();
+
+        const otherPayments = await PaymentEntryModel.aggregate([
+            {
+                $match: {
+                    purchaseInvoice: existingEntry.purchaseInvoice,
+                    _id: { $ne: existingEntry._id },
+                    isDeleted: false,
+                },
+            },
+            { $group: { _id: null, totalPaid: { $sum: "$paidAmount" } } },
+        ]);
+
+        const maxAmount = round2(
+            Math.max(
+                0,
+                (qualityCheck?.payableAfterQC ?? 0) -
+                    (otherPayments[0]?.totalPaid ?? 0),
+            ),
+        );
+
+        if (paidAmount > maxAmount + 0.01) {
+            throw new Error("PAYMENT_EXCEEDS_BALANCE");
+        }
+
+        update.paidAmount = round2(paidAmount);
+    }
+
+    const updated = await paymentEntryRepo.updatePaymentEntryById(id, update);
+
+    if (update.paidAmount !== undefined) {
+        await recalculateInvoiceSnapshots(existingEntry.purchaseInvoice);
+        return paymentEntryRepo.findPaymentEntryById(id);
+    }
+
+    return updated;
+};
+
+/** Re-walk the invoice's vouchers in creation order and refresh payable/balance. */
+const recalculateInvoiceSnapshots = async (
+    purchaseInvoice: mongoose.Types.ObjectId,
+) => {
+    const qualityCheck = await PurchaseQualityCheckModel.findOne({
+        purchaseEntry: purchaseInvoice,
+        isDeleted: false,
+    })
+        .select("payableAfterQC")
+        .lean<{ payableAfterQC: number }>();
+
+    const entries = await PaymentEntryModel.find({
+        purchaseInvoice,
+        isDeleted: false,
+    })
+        .sort({ createdAt: 1 })
+        .select("paidAmount")
+        .lean();
+
+    let balance = round2(qualityCheck?.payableAfterQC ?? 0);
+
+    await PaymentEntryModel.bulkWrite(
+        entries.map((entry) => {
+            const payableAmount = balance;
+            balance = round2(Math.max(0, balance - entry.paidAmount));
+
+            return {
+                updateOne: {
+                    filter: { _id: entry._id },
+                    update: {
+                        $set: { payableAmount, balanceAmount: balance },
+                    },
+                },
+            };
+        }),
+    );
 };
 
 export const deletePaymentEntry = async (

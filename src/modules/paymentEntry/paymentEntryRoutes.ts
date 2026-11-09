@@ -32,6 +32,11 @@ router.use(verifyToken);
  *           type: number
  *           minimum: 0.01
  *           example: 5000
+ *         paymentDate:
+ *           type: string
+ *           format: date
+ *           description: Paid date; defaults to today
+ *           example: 2026-11-08
  *
  *     PaymentEntry:
  *       type: object
@@ -241,7 +246,7 @@ router.get("/:id", paymentEntryController.getPaymentEntryById);
  * /api/payment-entries/{id}:
  *   put:
  *     summary: Update a payment entry
- *     description: Payment amount and purchase entry cannot be edited.
+ *     description: Paid amount and payment date can be edited; the purchase invoice cannot. Balances on the invoice's vouchers are recalculated.
  *     tags: [Payment Entries]
  *     security:
  *       - bearerAuth: []
@@ -258,7 +263,15 @@ router.get("/:id", paymentEntryController.getPaymentEntryById);
  *         application/json:
  *           schema:
  *             type: object
- *             properties: {}
+ *             properties:
+ *               paidAmount:
+ *                 type: number
+ *                 minimum: 0.01
+ *                 example: 5000
+ *               paymentDate:
+ *                 type: string
+ *                 format: date
+ *                 example: 2026-11-08
  *     responses:
  *       200:
  *         description: Payment entry updated successfully

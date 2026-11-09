@@ -21,6 +21,7 @@ export interface PurchaseQualityCheck extends BaseDocument {
     availableQtyAfterQC: number;
     payableAfterQC: number;
     checkedBy: mongoose.Types.ObjectId;
+    checkedByName: string;
 }
 
 export type PurchaseQualityCheckDocument = PurchaseQualityCheck & Document;
@@ -117,6 +118,10 @@ const PurchaseQualityCheckSchema =
             type: Schema.Types.ObjectId,
             ref: "User",
             required: true,
+        },
+        checkedByName: {
+            type: String,
+            trim: true,
         },
     });
 
