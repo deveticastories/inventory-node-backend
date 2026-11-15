@@ -11,18 +11,22 @@ export const createCustomer = async (
   customerData: CreateCustomerInput,
   createdBy: mongoose.Types.ObjectId,
 ) => {
-  const existingEmail = await customerRepo.findByEmail(customerData.email);
+  if (customerData.email) {
+    const existingEmail = await customerRepo.findByEmail(customerData.email);
 
-  if (existingEmail) {
-    throw new Error("CUSTOMER_EMAIL_EXISTS");
+    if (existingEmail) {
+      throw new Error("CUSTOMER_EMAIL_EXISTS");
+    }
   }
 
-  const existingWhatsApp = await customerRepo.findByWhatsAppNo(
-    customerData.whatsAppNo,
-  );
+  if (customerData.whatsAppNo) {
+    const existingWhatsApp = await customerRepo.findByWhatsAppNo(
+      customerData.whatsAppNo,
+    );
 
-  if (existingWhatsApp) {
-    throw new Error("CUSTOMER_WHATSAPP_EXISTS");
+    if (existingWhatsApp) {
+      throw new Error("CUSTOMER_WHATSAPP_EXISTS");
+    }
   }
 
   return customerRepo.create({
