@@ -17,8 +17,16 @@ export const findAllPurchaseEntryReports = async (
     const skip = (page - 1) * limit;
 
     const result = await PurchaseEntryModel.aggregate([
-        { $match: { isDeleted: false } },
-        { $sort: { createdAt: -1 } },
+        {
+            $match: {
+                isDeleted: false,
+            },
+        },
+        {
+            $sort: {
+                createdAt: -1,
+            },
+        },
         {
             $facet: {
                 data: [
@@ -54,7 +62,6 @@ export const findAllPurchaseEntryReports = async (
                                         isDeleted: false,
                                     },
                                 },
-                                { $limit: 1 },
                             ],
                             as: "qualityCheck",
                         },
@@ -81,30 +88,194 @@ export const findAllPurchaseEntryReports = async (
                                         isDeleted: false,
                                     },
                                 },
-                                { $sort: { createdAt: -1 } },
+                                {
+                                    $sort: {
+                                        createdAt: -1,
+                                    },
+                                },
                             ],
-                            as: "payments",
+                            as: "paymentEntries",
                         },
                     },
                     {
                         $project: {
                             __v: 0,
-                            "vendor.__v": 0,
-                            "qualityCheck.__v": 0,
-                            "payments.__v": 0,
                         },
                     },
                 ],
-                totalRecords: [{ $count: "count" }],
+
+                totalRecords: [
+                    {
+                        $count: "count",
+                    },
+                ],
+
+                totals: [
+                    {
+                        $group: {
+                            _id: null,
+                            totalProductQtyBeforeQualityCheck: {
+                                $sum: "$totalProductQty",
+                            },
+                            totalAmountBeforeQualityCheck: {
+                                $sum: "$totalAmount",
+                            },
+                            totalIncludingGSTBeforeQualityCheck: {
+                                $sum: "$totalIncludingGST",
+                            },
+                        },
+                    },
+                    {
+                        $project: {
+                            _id: 0,
+                            totalProductQtyBeforeQualityCheck: 1,
+                            totalAmountBeforeQualityCheck: 1,
+                            totalIncludingGSTBeforeQualityCheck: 1,
+                        },
+                    },
+                ],
+
+                qualityCheckTotals: [
+                    {
+                        $lookup: {
+                            from: PurchaseQualityCheckModel.collection.name,
+                            let: { purchaseEntryId: "$_id" },
+                            pipeline: [
+                                {
+                                    $match: {
+                                        $expr: {
+                                            $eq: [
+                                                "$purchaseEntry",
+                                                "$$purchaseEntryId",
+                                            ],
+                                        },
+                                        isDeleted: false,
+                                    },
+                                },
+                            ],
+                            as: "qualityCheck",
+                        },
+                    },
+                    {
+                        $unwind: "$qualityCheck",
+                    },
+                    {
+                        $group: {
+                            _id: null,
+                            totalApprovedQty: {
+                                $sum: "$qualityCheck.totalApprovedQty",
+                            },
+                            totalDamagedQty: {
+                                $sum: "$qualityCheck.totalDamagedQty",
+                            },
+                            availableQtyAfterQC: {
+                                $sum: "$qualityCheck.availableQtyAfterQC",
+                            },
+                            payableAfterQC: {
+                                $sum: "$qualityCheck.payableAfterQC",
+                            },
+                        },
+                    },
+                    {
+                        $project: {
+                            _id: 0,
+                            totalApprovedQty: 1,
+                            totalDamagedQty: 1,
+                            availableQtyAfterQC: 1,
+                            payableAfterQC: 1,
+                        },
+                    },
+                ],
+
+                paymentTotals: [
+                    {
+                        $lookup: {
+                            from: PaymentEntryModel.collection.name,
+                            let: { purchaseEntryId: "$_id" },
+                            pipeline: [
+                                {
+                                    $match: {
+                                        $expr: {
+                                            $eq: [
+                                                "$purchaseInvoice",
+                                                "$$purchaseEntryId",
+                                            ],
+                                        },
+                                        isDeleted: false,
+                                    },
+                                },
+                                {
+                                    $group: {
+                                        _id: null,
+                                        totalPaidAmount: {
+                                            $sum: "$paidAmount",
+                                        },
+                                        totalBalanceAmount: {
+                                            $sum: "$balanceAmount",
+                                        },
+                                    },
+                                },
+                            ],
+                            as: "paymentTotals",
+                        },
+                    },
+                    {
+                        $unwind: "$paymentTotals",
+                    },
+                    {
+                        $group: {
+                            _id: null,
+                            totalPaidAmount: {
+                                $sum: "$paymentTotals.totalPaidAmount",
+                            },
+                            totalBalanceAmount: {
+                                $sum: "$paymentTotals.totalBalanceAmount",
+                            },
+                        },
+                    },
+                    {
+                        $project: {
+                            _id: 0,
+                            totalPaidAmount: 1,
+                            totalBalanceAmount: 1,
+                        },
+                    },
+                ],
             },
         },
     ]);
 
-    const data = result[0]?.data ?? [];
-    const totalRecords = result[0]?.totalRecords[0]?.count ?? 0;
+    const report = result[0];
+
+    const data = report?.data ?? [];
+
+    const totalRecords = report?.totalRecords?.[0]?.count ?? 0;
+
+    const totals = report?.totals?.[0] ?? {
+        totalProductQtyBeforeQualityCheck: 0,
+        totalAmountBeforeQualityCheck: 0,
+        totalIncludingGSTBeforeQualityCheck: 0,
+    };
+
+    const qualityCheckTotals = report?.qualityCheckTotals?.[0] ?? {
+        totalApprovedQty: 0,
+        totalDamagedQty: 0,
+        availableQtyAfterQC: 0,
+        payableAfterQC: 0,
+    };
+
+    const paymentTotals = report?.paymentTotals?.[0] ?? {
+        totalPaidAmount: 0,
+        totalBalanceAmount: 0,
+    };
 
     return {
         data,
+        totals: {
+            ...totals,
+            ...qualityCheckTotals,
+            ...paymentTotals,
+        },
         pagination: getPaginationMeta(page, limit, totalRecords),
     };
 };

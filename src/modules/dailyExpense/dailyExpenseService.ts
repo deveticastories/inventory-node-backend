@@ -1,75 +1,136 @@
 
 import mongoose from "mongoose";
-import * as dailyExpenseRepo from "./dailyExpenseRepository";
-import { CreateDailyExpenseInput, UpdateDailyExpensePackingInput } from "../../validation/dailyExpenseValidation";
+import {
+    DailyExpenseDocument,
+} from "../../models/dailyExpenseModel.js";
+import * as dailyExpenseRepository from "./dailyExpenseRepository.js";
+import {
+    recalculatePettyCashFromMonth,
+} from "../pettyCash/pettyCashService.js";
 
 export const createDailyExpense = async (
-    expenseData: CreateDailyExpenseInput,
+    expenseData: Partial<DailyExpenseDocument>,
     createdBy: mongoose.Types.ObjectId,
-) => {
-    return dailyExpenseRepo.create({
-        ...expenseData,
-        packingId: "Open",
-        createdBy,
-    });
+): Promise<DailyExpenseDocument> => {
+    try {
+        const expense = await dailyExpenseRepository.create({
+            ...expenseData,
+            createdBy,
+            updatedBy: createdBy,
+        });
+
+        const expenseDate = expense.createdAt ?? new Date();
+
+        await recalculatePettyCashFromMonth(
+            expenseDate.getMonth() + 1,
+            expenseDate.getFullYear(),
+        );
+
+        return expense;
+    } catch (error: any) {
+        throw new Error(
+            error?.message || "Failed to create daily expense",
+        );
+    }
+};
+
+export const updateDailyExpense = async (
+    id: string,
+    expenseData: Partial<DailyExpenseDocument>,
+    updatedBy: mongoose.Types.ObjectId,
+): Promise<DailyExpenseDocument> => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            throw new Error("Invalid daily expense ID");
+        }
+
+        const existingExpense =
+            await dailyExpenseRepository.findById(id);
+
+        if (!existingExpense) {
+            throw new Error("Daily expense not found");
+        }
+
+        const expense = await dailyExpenseRepository.updateById(
+            id,
+            {
+                ...expenseData,
+                updatedBy,
+            },
+        );
+
+        if (!expense) {
+            throw new Error("Daily expense not found");
+        }
+
+        const expenseDate = existingExpense.createdAt ?? new Date();
+
+        await recalculatePettyCashFromMonth(
+            expenseDate.getMonth() + 1,
+            expenseDate.getFullYear(),
+        );
+
+        return expense;
+    } catch (error: any) {
+        throw new Error(
+            error?.message || "Failed to update daily expense",
+        );
+    }
+};
+
+export const getDailyExpenseById = async (
+    id: string,
+): Promise<DailyExpenseDocument | null> => {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error("Invalid daily expense ID");
+    }
+
+    return dailyExpenseRepository.findById(id);
 };
 
 export const getAllDailyExpenses = async (
     page: number,
     limit: number,
 ) => {
-    return dailyExpenseRepo.getAllDailyExpenses(page, limit);
-};
-
-export const getDailyExpenseById = async (id: string) => {
-    if (!mongoose.isValidObjectId(id)) {
-        throw new Error("DAILY_EXPENSE_ID_INVALID");
-    }
-
-    return dailyExpenseRepo.findById(id);
-};
-
-export const updateDailyExpensePacking = async (
-    id: string,
-    packingData: UpdateDailyExpensePackingInput,
-    updatedBy: mongoose.Types.ObjectId,
-) => {
-    if (!mongoose.isValidObjectId(id)) {
-        throw new Error("DAILY_EXPENSE_ID_INVALID");
-    }
-
-    const expense = await dailyExpenseRepo.findById(id);
-
-    if (!expense) {
-        return null;
-    }
-
-    if (expense.packingId !== "Open") {
-        throw new Error("DAILY_EXPENSE_ALREADY_ASSIGNED");
-    }
-
-    const updatedExpense = await dailyExpenseRepo.updatePackingId(
-        id,
-        packingData.packingId,
-    );
-
-    if (!updatedExpense) {
-        throw new Error("DAILY_EXPENSE_ALREADY_ASSIGNED");
-    }
-
-    return dailyExpenseRepo.updateById(id, {
-        updatedBy,
-        userUpdatedDate: new Date(),
-    });
+    return dailyExpenseRepository.getAllDailyExpenses(page, limit);
 };
 
 export const deleteDailyExpense = async (
     id: string,
     deletedBy: mongoose.Types.ObjectId,
-) => {
-    if (!mongoose.isValidObjectId(id)) {
-        throw new Error("DAILY_EXPENSE_ID_INVALID");
-    }
+): Promise<DailyExpenseDocument> => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            throw new Error("Invalid daily expense ID");
+        }
 
-    return dailyExpenseRepo.deleteDailyExpense(id, deletedBy);
+        const existingExpense =
+            await dailyExpenseRepository.findById(id);
+
+        if (!existingExpense) {
+            throw new Error("Daily expense not found");
+        }
+
+        const expense = await dailyExpenseRepository.deleteDailyExpense(
+            id,
+            deletedBy,
+        );
+
+        if (!expense) {
+            throw new Error("Daily expense not found");
+        }
+
+        const expenseDate = existingExpense.createdAt ?? new Date();
+
+        await recalculatePettyCashFromMonth(
+            expenseDate.getMonth() + 1,
+            expenseDate.getFullYear(),
+        );
+
+        return expense;
+    } catch (error: any) {
+        throw new Error(
+            error?.message || "Failed to delete daily expense",
+        );
+    }
 };

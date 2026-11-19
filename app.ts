@@ -19,6 +19,7 @@ import paymentEntriesRoutes from "./src/modules/paymentEntry/paymentEntryRoutes"
 import receiptEntryRoutes from "./src/modules/receiptEntry/receiptEntryRoutes";
 import reportsRoutes from "./src/modules/reports/reportsRoutes"
 import settingsRoutes from "./src/modules/settings/settingsRoutes";
+import creditNoteRoutes from "./src/modules/creditNote/creditNoteRoutes";
 
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./src/config/swagger";
@@ -43,5 +44,6 @@ app.use("/api/billings/", billingRoutes)
 app.use("/api/payment-entries", paymentEntriesRoutes)
 app.use("/api/receipt-entries", receiptEntryRoutes)
 app.use("/api/reports", reportsRoutes)
+app.use("/api/credit-notes",creditNoteRoutes)
 app.use("/api/settings", settingsRoutes)
 export default app;

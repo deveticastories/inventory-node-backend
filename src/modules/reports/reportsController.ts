@@ -6,6 +6,7 @@ import { getAllPurchaseEntryReportsService,getAllSalesReportsService,getAllDebit
 import * as reportsService from "./reportsService";
 import { sendError } from "../../utils/errorStatus";
 
+
 export const getAllPurchaseEntryReportsController = async (
     req: Request,
     res: Response,
@@ -22,15 +23,17 @@ export const getAllPurchaseEntryReportsController = async (
             success: true,
             message: message.PURCHASE_ENTRY_FETCH_SUCCESS,
             data: report.data,
+            totals: report.totals,
             pagination: report.pagination,
         });
-    } catch {
+    } catch (error) {
         return res.status(statusCode.INTERNAL_SERVER_ERROR).json({
             success: false,
             message: message.INTERNAL_SERVER_ERROR,
         });
     }
 };
+
 export const getAllSalesReportsController = async (
     req: Request,
     res: Response,
