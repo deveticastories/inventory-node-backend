@@ -292,13 +292,7 @@ const swaggerOptions: swaggerJsdoc.Options = {
         },
         CreateCustomer: {
           type: "object",
-          required: [
-            "name",
-            "contactNo",
-            "whatsAppNo",
-            "address",
-            "email",
-          ],
+          required: ["name"],
           properties: {
             name: {
               type: "string",

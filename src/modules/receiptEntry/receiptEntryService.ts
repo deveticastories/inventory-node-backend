@@ -19,6 +19,8 @@ const generateReceiptNo = async (): Promise<string> => {
 export interface CreateReceiptEntryInput {
     invoice: string;
     receivedAmount: number;
+    /** Date the customer paid (YYYY-MM-DD); defaults to now. */
+    receiptDate?: string;
 }
 
 export const createReceiptEntry = async (
@@ -34,6 +36,14 @@ export const createReceiptEntry = async (
         data.receivedAmount <= 0
     ) {
         throw new Error("RECEIVED_AMOUNT_INVALID");
+    }
+
+    const receiptDate = data.receiptDate
+        ? new Date(data.receiptDate)
+        : new Date();
+
+    if (Number.isNaN(receiptDate.getTime())) {
+        throw new Error("RECEIPT_DATE_INVALID");
     }
 
     const invoiceId = new mongoose.Types.ObjectId(data.invoice);
@@ -65,7 +75,7 @@ export const createReceiptEntry = async (
         receiptNo,
         invoice: invoiceId,
         customer: invoice.customer,
-        receiptDate: new Date(),
+        receiptDate,
         receivableAmount: outstandingBalance,
         receivedAmount: data.receivedAmount,
         balanceAmount,
@@ -108,26 +118,138 @@ export const getReceiptEntriesByInvoice = async (
     return receiptEntryRepo.findReceiptEntriesByInvoice(invoiceId);
 };
 
+export interface EditReceiptEntryInput {
+    receivedAmount?: number;
+    receiptDate?: string;
+}
+
+/**
+ * Received amount and date can be edited; the invoice cannot. When the amount
+ * changes, the difference is carried into this and every later receipt's
+ * receivable/balance snapshot, and the invoice totals are refreshed.
+ */
 export const editReceiptEntry = async (
     id: string,
-    updateData: Partial<CreateReceiptEntryInput>,
+    updateData: EditReceiptEntryInput & { invoice?: string },
 ) => {
     if (!mongoose.isValidObjectId(id)) {
         throw new Error("RECEIPT_ENTRY_ID_INVALID");
     }
 
-    const existing = await receiptEntryRepo.findReceiptEntryById(id);
+    const existing = await ReceiptEntryModel.findOne({
+        _id: new mongoose.Types.ObjectId(id),
+        isDeleted: false,
+    }).lean();
 
     if (!existing) return null;
 
-    if (
-        updateData.invoice !== undefined ||
-        updateData.receivedAmount !== undefined
-    ) {
+    if (updateData.invoice !== undefined) {
         throw new Error("RECEIPT_ENTRY_EDIT_NOT_ALLOWED");
     }
 
-    return receiptEntryRepo.updateReceiptEntryById(id, {});
+    const update: { receivedAmount?: number; receiptDate?: Date } = {};
+
+    if (updateData.receiptDate !== undefined) {
+        const receiptDate = new Date(updateData.receiptDate);
+
+        if (Number.isNaN(receiptDate.getTime())) {
+            throw new Error("RECEIPT_DATE_INVALID");
+        }
+
+        update.receiptDate = receiptDate;
+    }
+
+    let delta = 0;
+
+    if (updateData.receivedAmount !== undefined) {
+        const receivedAmount = Number(updateData.receivedAmount);
+
+        if (!Number.isFinite(receivedAmount) || receivedAmount <= 0) {
+            throw new Error("RECEIVED_AMOUNT_INVALID");
+        }
+
+        const invoice = await BillingModel.findOne({
+            _id: existing.invoice,
+            isDeleted: false,
+        })
+            .select("netAmount receivedAmount")
+            .lean<{ netAmount: number; receivedAmount: number }>();
+
+        const maxAmount = round2(
+            existing.receivedAmount +
+                Math.max(
+                    0,
+                    (invoice?.netAmount ?? 0) - (invoice?.receivedAmount ?? 0),
+                ),
+        );
+
+        if (receivedAmount > maxAmount + 0.01) {
+            throw new Error("RECEIPT_EXCEEDS_BALANCE");
+        }
+
+        update.receivedAmount = round2(receivedAmount);
+        delta = round2(update.receivedAmount - existing.receivedAmount);
+    }
+
+    const updated = await receiptEntryRepo.updateReceiptEntryById(id, update);
+
+    if (delta !== 0) {
+        await shiftReceiptSnapshots(existing, delta);
+        await refreshBillingTotals(existing.invoice);
+        return receiptEntryRepo.findReceiptEntryById(id);
+    }
+
+    return updated;
+};
+
+/** Carry an amount change into this receipt's balance and every later receipt on the invoice. */
+const shiftReceiptSnapshots = async (
+    edited: {
+        _id: mongoose.Types.ObjectId;
+        invoice: mongoose.Types.ObjectId;
+        balanceAmount: number;
+        createdAt?: Date;
+    },
+    delta: number,
+) => {
+    const later = await ReceiptEntryModel.find({
+        invoice: edited.invoice,
+        isDeleted: false,
+        _id: { $ne: edited._id },
+        createdAt: { $gt: edited.createdAt },
+    })
+        .select("receivableAmount balanceAmount")
+        .lean();
+
+    await ReceiptEntryModel.bulkWrite([
+        {
+            updateOne: {
+                filter: { _id: edited._id },
+                update: {
+                    $set: {
+                        balanceAmount: round2(
+                            Math.max(0, edited.balanceAmount - delta),
+                        ),
+                    },
+                },
+            },
+        },
+        ...later.map((entry) => ({
+            updateOne: {
+                filter: { _id: entry._id },
+                update: {
+                    $set: {
+                        receivableAmount: round2(
+                            Math.max(0, entry.receivableAmount - delta),
+                        ),
+                        balanceAmount: round2(
+                            Math.max(0, entry.balanceAmount - delta),
+                        ),
+                    },
+                },
+            },
+        })),
+    ]);
 };
 
 export const deleteReceiptEntry = async (

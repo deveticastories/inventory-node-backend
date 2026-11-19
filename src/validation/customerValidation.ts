@@ -1,21 +1,30 @@
 import { z } from "zod";
 import { message } from "../constants/responseMessage";
 
+/** Blank optional fields are treated as not provided. */
+const optional = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    schema.optional(),
+  );
+
 export const createCustomerValidation = z.object({
   name: z.string().trim().min(1, message.CUSTOMER_NAME_REQUIRED),
-  contactNo: z.string().trim().min(1, message.CUSTOMER_CONTACT_NO_REQUIRED),
-  whatsAppNo: z
-    .string()
-    .trim()
-    .min(1, message.CUSTOMER_WHATSAPP_REQUIRED)
-    .regex(/^\+?[0-9]{10,15}$/, message.CUSTOMER_WHATSAPP_INVALID),
-  address: z.string().trim().min(1, message.CUSTOMER_ADDRESS_REQUIRED),
-  email: z
-    .string()
-    .trim()
-    .min(1, message.CUSTOMER_EMAIL_REQUIRED)
-    .email(message.CUSTOMER_EMAIL_INVALID)
-    .transform((value) => value.toLowerCase()),
+  contactNo: optional(z.string().trim()),
+  whatsAppNo: optional(
+    z
+      .string()
+      .trim()
+      .regex(/^\+?[0-9]{10,15}$/, message.CUSTOMER_WHATSAPP_INVALID),
+  ),
+  address: optional(z.string().trim()),
+  email: optional(
+    z
+      .string()
+      .trim()
+      .email(message.CUSTOMER_EMAIL_INVALID)
+      .transform((value) => value.toLowerCase()),
+  ),
 });
 
 export const updateCustomerValidation = createCustomerValidation.partial();

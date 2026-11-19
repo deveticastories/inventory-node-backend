@@ -3,10 +3,10 @@ import { BaseDocument, BaseSchema } from "./baseModel";
 
 export interface Customer extends BaseDocument {
   name: string;
-  contactNo: string;
-  whatsAppNo: string;
-  address: string;
-  email: string;
+  contactNo?: string;
+  whatsAppNo?: string;
+  address?: string;
+  email?: string;
 }
 
 export type CustomerDocument = Customer & Document;
@@ -20,22 +20,18 @@ const CustomerSchema: Schema<CustomerDocument> =
     },
     contactNo: {
       type: String,
-      required: true,
       trim: true,
     },
     whatsAppNo: {
       type: String,
-      required: true,
       trim: true,
     },
     address: {
       type: String,
-      required: true,
       trim: true,
     },
     email: {
       type: String,
-      required: true,
       trim: true,
       lowercase: true,
     },
@@ -46,9 +42,12 @@ CustomerSchema.add(BaseSchema);
 CustomerSchema.index(
   { email: 1 },
   {
+    name: "email_unique_when_set",
     unique: true,
+    // Optional field: only enforce uniqueness on customers that have one.
     partialFilterExpression: {
       isDeleted: false,
+      email: { $type: "string" },
     },
   },
 );
@@ -56,9 +55,12 @@ CustomerSchema.index(
 CustomerSchema.index(
   { whatsAppNo: 1 },
   {
+    name: "whatsAppNo_unique_when_set",
     unique: true,
+    // Optional field: only enforce uniqueness on customers that have one.
     partialFilterExpression: {
       isDeleted: false,
+      whatsAppNo: { $type: "string" },
     },
   },
 );

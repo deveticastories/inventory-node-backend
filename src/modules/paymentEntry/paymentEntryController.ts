@@ -56,6 +56,10 @@ const getErrorResponse = (error: unknown) => {
                 status: statusCode.BAD_REQUEST,
                 message: message.PAYMENT_ENTRY_EDIT_NOT_ALLOWED,
             },
+            PAYMENT_DATE_INVALID: {
+                status: statusCode.BAD_REQUEST,
+                message: message.PAYMENT_DATE_INVALID,
+            },
         };
 
         if (errorMap[error.message]) {
