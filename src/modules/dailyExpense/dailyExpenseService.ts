@@ -78,6 +78,40 @@ export const updateDailyExpense = async (
     }
 };
 
+export const updateDailyExpensePacking = async (
+    id: string,
+    packingData: { packingId: string },
+    updatedBy: mongoose.Types.ObjectId,
+): Promise<DailyExpenseDocument | null> => {
+    if (!mongoose.isValidObjectId(id)) {
+        throw new Error("DAILY_EXPENSE_ID_INVALID");
+    }
+
+    const expense = await dailyExpenseRepository.findById(id);
+
+    if (!expense) {
+        return null;
+    }
+
+    if (expense.packingId !== "Open") {
+        throw new Error("DAILY_EXPENSE_ALREADY_ASSIGNED");
+    }
+
+    const updatedExpense = await dailyExpenseRepository.updatePackingId(
+        id,
+        packingData.packingId,
+    );
+
+    if (!updatedExpense) {
+        throw new Error("DAILY_EXPENSE_ALREADY_ASSIGNED");
+    }
+
+    return dailyExpenseRepository.updateById(id, {
+        updatedBy,
+        userUpdatedDate: new Date(),
+    });
+};
+
 export const getDailyExpenseById = async (
     id: string,
 ): Promise<DailyExpenseDocument | null> => {

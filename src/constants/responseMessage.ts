@@ -273,5 +273,18 @@ export const message = {
     DEBIT_REPORT_FETCH_SUCCESS: "Debit report fetched successfully",
     VENDOR_FETCH_FAILED: "Vendor details fetch failed",
     TRANSIT_REPORT_FETCH_SUCCESS: "Transit reports fetched successfully",
+    CREDIT_NOTE_CREATED: "Credit note created successfully",
+    CREDIT_NOTE_CREATED_FAILED: "Failed to create credit note",
+    CREDIT_NOTES_FETCHED: "Credit notes fetched successfully",
+    CREDIT_NOTES_FETCH_FAILED: "Failed to fetch credit notes",
+    CREDIT_NOTE_FETCH_FAILED: "Failed to fetch credit note",
+    CREDIT_NOTE_NOT_FOUND: "Credit Note not found",
+    INVALID_CREDIT_NOTE_ID: "Invalid Credit Note ID",
+    INVALID_CREDIT_NOTE_AMOUNT: "Amount must be a valid non-negative number",
+    CREDIT_NOTE_UPDATE_DATA_REQUIRED: "At least one field is required to update the credit note",
+    CREDIT_NOTE_UPDATED: "Credit note updated successfully",
+    CREDIT_NOTE_UPDATED_FAILED: "Failed to update credit note",
+    CREDIT_NOTE_DELETED: "Credit note deleted successfully",
+    CREDIT_NOTE_DELETED_FAILED: "Failed to delete credit note",
 
 };
