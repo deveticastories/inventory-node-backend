@@ -27,7 +27,6 @@ export const createCreditNote = async (
   );
   return creditNote;
 };
-
 export const getAllCreditNotes = async () => {
   const creditNotes = await creditNoteRepository.getAllCreditNotes();
 
@@ -35,8 +34,14 @@ export const getAllCreditNotes = async () => {
     isDeleted: false,
   }).select("pettyCashBalance balanceAfterExpenses");
 
+  const totalCreditNoteAmount = creditNotes.reduce(
+    (total, creditNote) => total + Number(creditNote.amount ?? 0),
+    0,
+  );
+
   return {
     totalCreditNotes: creditNotes.length,
+    totalCreditNoteAmount,
     creditNoteList: creditNotes,
     pettyCashBalance: pettyCash?.pettyCashBalance ?? 0,
     balanceAfterExpenses: pettyCash?.balanceAfterExpenses ?? 0,

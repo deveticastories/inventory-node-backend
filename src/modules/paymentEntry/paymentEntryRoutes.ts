@@ -32,6 +32,12 @@ router.use(verifyToken);
  *           type: number
  *           minimum: 0.01
  *           example: 5000
+ *         discount:
+ *           type: number
+ *           minimum: 0
+ *           default: 0
+ *           example: 500
+ *           description: Optional discount amount
  *         paymentDate:
  *           type: string
  *           format: date
@@ -52,6 +58,9 @@ router.use(verifyToken);
  *         paidAmount:
  *           type: number
  *           example: 5000
+ *         discount:
+ *           type: number
+ *           example: 500
  *         balanceAmount:
  *           type: number
  *           example: 24500
@@ -107,7 +116,7 @@ router.use(verifyToken);
  * /api/payment-entries:
  *   post:
  *     summary: Create a payment entry
- *     description: Payment voucher number is generated automatically in PAY-0001 format.
+ *     description: Payment voucher number is generated automatically in PAY-0001 format. Discount is optional and defaults to 0.
  *     tags: [Payment Entries]
  *     security:
  *       - bearerAuth: []
@@ -246,7 +255,7 @@ router.get("/:id", paymentEntryController.getPaymentEntryById);
  * /api/payment-entries/{id}:
  *   put:
  *     summary: Update a payment entry
- *     description: Paid amount and payment date can be edited; the purchase invoice cannot. Balances on the invoice's vouchers are recalculated.
+ *     description: Paid amount, discount and payment date can be edited; the purchase invoice cannot. Balances on the invoice's vouchers are recalculated.
  *     tags: [Payment Entries]
  *     security:
  *       - bearerAuth: []
@@ -268,6 +277,11 @@ router.get("/:id", paymentEntryController.getPaymentEntryById);
  *                 type: number
  *                 minimum: 0.01
  *                 example: 5000
+ *               discount:
+ *                 type: number
+ *                 minimum: 0
+ *                 example: 500
+ *                 description: Optional discount amount
  *               paymentDate:
  *                 type: string
  *                 format: date

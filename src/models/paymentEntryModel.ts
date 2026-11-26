@@ -1,4 +1,3 @@
-
 import mongoose, { Schema, type Document } from "mongoose";
 import { BaseDocument, BaseSchema } from "./baseModel";
 
@@ -7,7 +6,8 @@ export interface PaymentEntry extends BaseDocument {
     purchaseInvoice: mongoose.Types.ObjectId;
     vendor: mongoose.Types.ObjectId;
     paymentDate: Date;
-    payableAmount: number;
+    payableAmount: number; 
+    discount?: number; 
     paidAmount: number;
     balanceAmount: number;
 }
@@ -41,6 +41,11 @@ const PaymentEntrySchema = new Schema<PaymentEntryDocument>(
         payableAmount: {
             type: Number,
             required: true,
+            min: 0,
+            default: 0,
+        },
+        discount: {
+            type: Number,
             min: 0,
             default: 0,
         },

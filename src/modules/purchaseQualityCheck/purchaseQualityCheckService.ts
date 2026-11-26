@@ -335,5 +335,27 @@ export const getAllQualityChecksService = async () => {
     const qualityChecks =
         await purchaseQualityCheckRepo.findAllQualityChecks();
 
-    return qualityChecks.map(formatQualityCheck);
+    const formattedQualityChecks = qualityChecks.map(formatQualityCheck);
+
+    const totalAvailableQtyAfterQC = qualityChecks.reduce(
+        (total, qualityCheck) =>
+            total + Number(qualityCheck.availableQtyAfterQC ?? 0),
+        0,
+    );
+
+    const totalPayableAfterQC = round2(
+        qualityChecks.reduce(
+            (total, qualityCheck) =>
+                total + Number(qualityCheck.payableAfterQC ?? 0),
+            0,
+        ),
+    );
+
+    return {
+        summary: {
+            totalAvailableQtyAfterQC,
+            totalPayableAfterQC,
+        },
+        qualityChecks: formattedQualityChecks,
+    };
 };

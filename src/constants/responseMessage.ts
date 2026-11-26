@@ -278,13 +278,23 @@ export const message = {
     CREDIT_NOTES_FETCHED: "Credit notes fetched successfully",
     CREDIT_NOTES_FETCH_FAILED: "Failed to fetch credit notes",
     CREDIT_NOTE_FETCH_FAILED: "Failed to fetch credit note",
+<<<<<<< HEAD
     CREDIT_NOTE_NOT_FOUND: "Credit Note not found",
     INVALID_CREDIT_NOTE_ID: "Invalid Credit Note ID",
     INVALID_CREDIT_NOTE_AMOUNT: "Amount must be a valid non-negative number",
     CREDIT_NOTE_UPDATE_DATA_REQUIRED: "At least one field is required to update the credit note",
+=======
+    CREDIT_NOTE_NOT_FOUND: "Credit note not found",
+>>>>>>> 6ede9e3 (feat: credit note)
     CREDIT_NOTE_UPDATED: "Credit note updated successfully",
     CREDIT_NOTE_UPDATED_FAILED: "Failed to update credit note",
     CREDIT_NOTE_DELETED: "Credit note deleted successfully",
     CREDIT_NOTE_DELETED_FAILED: "Failed to delete credit note",
+<<<<<<< HEAD
 
+=======
+    INVALID_CREDIT_NOTE_ID: "Invalid credit note ID",
+    INVALID_CREDIT_NOTE_AMOUNT: "Invalid credit note amount",
+    CREDIT_NOTE_UPDATE_DATA_REQUIRED: "At least one field is required to update credit note",
+>>>>>>> 6ede9e3 (feat: credit note)
 };

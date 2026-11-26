@@ -155,7 +155,7 @@ export const updateDailyExpensePacking = async (
             });
         }
 
-        const expense = await dailyExpenseService.updateDailyExpensePacking(
+        const expense = await dailyExpenseService.updateDailyExpense(
             id,
             req.body,
             new mongoose.Types.ObjectId(req.userId),

@@ -50,12 +50,12 @@ const swaggerOptions: swaggerJsdoc.Options = {
             email: {
               type: "string",
               format: "email",
-              example: "admin@example.com",
+              example: "superadmin@gmail.com",
             },
             password: {
               type: "string",
               format: "password",
-              example: "Admin@123",
+              example: "Superadmin@123",
             },
           },
         },
